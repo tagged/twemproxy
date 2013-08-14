@@ -144,6 +144,28 @@ server_each_set_sentinel(void *elem, void *data)
     return NC_OK;
 }
 
+static rstatus_t
+server_pool_each_set_failover(void *elem, void *data)
+{
+    struct server_pool *sp = elem, *pool;
+    struct array *pool_array = data;
+    uint32_t pool_index;
+
+    if (string_empty(&sp->failover_name)) {
+        return NC_OK;
+    }
+    for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
+        pool = array_get(pool_array, pool_index);
+
+        if (string_compare(&pool->name, &sp->failover_name) == 0 &&
+            pool->redis == sp->redis) {
+            sp->failover = pool;
+            return NC_OK;
+        }
+    }
+    return NC_ERROR;
+}
+
 rstatus_t
 server_init(struct array *server, struct array *conf_server,
             struct server_pool *sp, bool sentinel)
@@ -295,10 +317,6 @@ server_failure(struct context *ctx, struct server *server)
     int64_t now;
     rstatus_t status;
     bool is_reconnect;
-
-    if (!pool->auto_eject_hosts) {
-        return;
-    }
 
     /* sentinel do not need eject */
     if (server->sentinel) {
@@ -759,10 +777,6 @@ server_pool_update(struct server_pool *pool)
     int64_t now;
     uint32_t pnlive_server; /* prev # live server */
 
-    if (!pool->auto_eject_hosts) {
-        return NC_OK;
-    }
-
     if (pool->next_rebuild == 0LL) {
         return NC_OK;
     }
@@ -896,6 +910,25 @@ server_pool_conn(struct context *ctx, struct server_pool *pool, uint8_t *key,
 
     /* from a given {key, keylen} pick a server from pool */
     server = server_pool_server(pool, key, keylen);
+    if (server == NULL || server->fail != FAIL_STATUS_NORMAL) {
+        struct server_pool *failover = pool->failover;
+        if (failover != NULL) {
+            /* Fallback to the failover pool */
+            server = NULL;
+            status = server_pool_update(failover);
+            if (status == NC_OK) {
+                server = server_pool_server(failover, key, keylen);
+            }
+            if (server != NULL && server->fail == FAIL_STATUS_NORMAL) {
+                log_debug(LOG_VERB, "fellback to failover connection to good server '%.*s'", server->pname.len, server->pname.data);
+            } else if (server != NULL) {
+                log_debug(LOG_VERB, "failed fallback to failover connection to dead server '%.*s'", server->pname.len, server->pname.data);
+            } else {
+                log_debug(LOG_VERB, "failed fallback to failover connection, no server");
+            }
+        }
+    }
+
     if (server == NULL) {
         return NULL;
     }
@@ -1071,6 +1104,14 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
     ctx->max_nsconn = 0;
     status = array_each(server_pool, server_pool_each_calc_connections, ctx);
     if (status != NC_OK) {
+        server_pool_deinit(server_pool);
+        return status;
+    }
+
+    /* set failover pool for each server pool */
+    status = array_each(server_pool, server_pool_each_set_failover, server_pool);
+    if (status != NC_OK) {
+        log_error("server: failed to set failover pool");
         server_pool_deinit(server_pool);
         return status;
     }

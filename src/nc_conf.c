@@ -114,6 +114,10 @@ static struct command conf_commands[] = {
       conf_add_server,
       offsetof(struct conf_pool, sentinel) },
 
+    { string("failover"),
+      conf_set_string,
+      offsetof(struct conf_pool, failover_name) },
+
     null_command
 };
 
@@ -219,6 +223,8 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
 
     cp->valid = 0;
 
+    string_init(&cp->failover_name);
+
     status = string_duplicate(&cp->name, name);
     if (status != NC_OK) {
         return status;
@@ -260,6 +266,8 @@ conf_pool_deinit(struct conf_pool *cp)
         conf_server_deinit(array_pop(&cp->server));
     }
     array_deinit(&cp->server);
+
+    string_deinit(&cp->failover_name);
 
     log_debug(LOG_VVERB, "deinit conf pool %p", cp);
 }
@@ -329,9 +337,9 @@ conf_pool_each_transform(void *elem, void *data)
     }
 
     status = server_init(&sp->sentinel, &cp->sentinel, sp, true);
-    if (status != NC_OK) {
-        return status;
-    }
+
+    sp->failover_name = cp->failover_name;
+    sp->failover = NULL;
 
     log_debug(LOG_VERB, "transform to pool %"PRIu32" '%.*s'", sp->idx,
               sp->name.len, sp->name.data);
@@ -377,6 +385,11 @@ conf_dump(struct conf *cf)
                   cp->server_retry_timeout);
         log_debug(LOG_VVERB, "  server_failure_limit: %d",
                   cp->server_failure_limit);
+        if (cp->failover_name.len != 0) {
+          log_debug(LOG_VVERB, "  failover: \"%.*s\"", cp->failover_name.len, cp->failover_name.data);
+        } else {
+          log_debug(LOG_VVERB, "  no failover");
+        }
 
         nserver = array_n(&cp->server);
         log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
@@ -1421,7 +1434,7 @@ conf_validate_sentinel(struct conf *cf, struct conf_pool *cp)
 
         if (string_compare(&cs1->name, &cs2->name) == 0) {
             log_error("conf: pool '%.*s' has sentinels with same name '%.*s'",
-                      cp->name.len, cp->name.data, cs1->name.len, 
+                      cp->name.len, cp->name.data, cs1->name.len,
                       cs1->name.data);
             valid = false;
             break;

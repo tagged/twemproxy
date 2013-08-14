@@ -131,6 +131,8 @@ struct server_pool {
     uint32_t           server_failure_limit; /* server failure limit */
     struct string      redis_auth;           /* redis_auth password (matches requirepass on redis) */
     unsigned           require_auth;         /* require_auth? */
+    struct string      failover_name;        /* failover pool name */
+    struct server_pool *failover;            /* failover pool */
     unsigned           auto_eject_hosts:1;   /* auto_eject_hosts? */
     unsigned           preconnect:1;         /* preconnect? */
     unsigned           redis:1;              /* redis? */
