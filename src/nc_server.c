@@ -880,7 +880,7 @@ set_heartbeat_command(struct mbuf *mbuf, int redis)
     return n;
 }
 
-static rstatus_t
+rstatus_t
 send_heartbeat(struct context *ctx, struct conn *conn, struct server *server)
 {
     struct mbuf *mbuf;

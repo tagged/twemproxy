@@ -148,5 +148,6 @@ void server_restore(struct context *ctx, struct conn *conn);
 rstatus_t server_reconnect(struct context *ctx, struct server *server);
 void add_failed_server(struct context *ctx, struct server *server);
 void server_restore_from_heartbeat(struct server *server, struct conn *conn);
+rstatus_t send_heartbeat(struct context *ctx, struct conn *conn, struct server *server);
 
 #endif
