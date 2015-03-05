@@ -1,7 +1,7 @@
 Summary: Twitter's nutcracker redis and memcached proxy
 Name: nutcracker
-Version: 0.4.1
-Release: 1
+Version: 0.5.0
+Release: tagged2
 
 URL: https://github.com/twitter/twemproxy/
 Source0: %{name}-%{version}.tar.gz
@@ -66,6 +66,10 @@ fi
 %config(noreplace)%{_sysconfdir}/%{name}/%{name}.yml
 
 %changelog
+* Tue Jul 14 2015 Misha Nasledov <misha@nasledov.com>
+- twemproxy: version 0.5.0 release
+- redis-sentinel support (andyqzb)
+
 * Mon Jun 22 2015  Manju Rajashekhar  <manj@cs.stanford.edu>
 - twemproxy: version 0.4.1 release
 - backend server hostnames are resolved lazily
@@ -91,7 +95,7 @@ fi
 - allow null key(empty key) (idning)
 - fix core on invalid mset like "mset a a a" (idning)
 
-* Tue Oct 18 2014 idning <idning@gmail.com>
+* Sat Oct 18 2014 idning <idning@gmail.com>
 - twemproxy: version 0.4.0 release
 - mget improve (idning)
 - many new commands supported: LEX, PFADD, PFMERGE, SORT, PING, QUIT, SCAN... (mattrobenolt, areina, idning)

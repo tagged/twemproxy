@@ -1,3 +1,7 @@
+ 2015-07-14  mishan <misha@nasledov.com>
+
+    * twemproxy: version 0.5.0 release
+      redis-sentinel support (andyqzb)
  2015-22-06  Manju Rajashekhar  <manj@cs.stanford.edu>
     * twemproxy: version 0.4.1 release
       backend server hostnames are resolved lazily
