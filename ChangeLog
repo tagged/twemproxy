@@ -1,4 +1,13 @@
- 2015-22-06  Manju Rajashekhar  <manj@cs.stanford.edu>
+2016-04-27  Misha Nasledov <misha@nasledov.com>
+    * twemproxy: version 0.5.1 release
+      updated to latest master from twitter/twemproxy
+      updated to latest version of andyqzb's sentinel patch
+
+2015-07-14  Misha Nasledov <misha@nasledov.com>
+    * twemproxy: version 0.5.0 release
+      redis-sentinel support (andyqzb)
+
+2015-22-06  Manju Rajashekhar  <manj@cs.stanford.edu>
     * twemproxy: version 0.4.1 release
       backend server hostnames are resolved lazily
       redis_auth is only valid for a redis pool
