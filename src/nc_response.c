@@ -142,8 +142,11 @@ static bool
 rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
 {
     struct msg *pmsg;
+    struct server *server;
 
     ASSERT(!conn->client && !conn->proxy);
+
+    server = (struct server *)conn->owner;
 
     if (msg_empty(msg)) {
         ASSERT(conn->rmsg == NULL);
@@ -205,7 +208,6 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
 
     if (pmsg->swallow) {
         conn->swallow_msg(conn, pmsg, msg);
-
         conn->dequeue_outq(ctx, conn, pmsg);
         pmsg->done = 1;
 
@@ -213,8 +215,20 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
                   "%"PRIu64" on s %d", msg->id, msg->mlen, pmsg->id,
                   conn->sd);
 
+        if (server->fail == FAIL_STATUS_ERR_TRY_HEARTBEAT) {
+            if (type != MSG_RSP_REDIS_ERROR) {
+                struct conn *c_conn;
+
+                c_conn = pmsg->owner; 
+                server_restore_from_heartbeat(server, c_conn);
+            } /*else {
+                send_heartbeat(ctx, conn, server);
+                } snip out redis from heartbeat */
+        }
+
         rsp_put(msg);
         req_put(pmsg);
+
         return true;
     }
 

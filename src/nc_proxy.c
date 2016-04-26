@@ -359,7 +359,7 @@ proxy_accept(struct context *ctx, struct conn *p)
     }
 
     if (pool->tcpkeepalive) {
-        status = nc_set_tcpkeepalive(c->sd);
+        status = nc_set_tcpkeepalive(c->sd, CLIENT_KEEP_INTERVAL);
         if (status < 0) {
             log_warn("set tcpkeepalive on c %d from p %d failed, ignored: %s",
                      c->sd, p->sd, strerror(errno));
@@ -405,4 +405,9 @@ proxy_recv(struct context *ctx, struct conn *conn)
     } while (conn->recv_ready);
 
     return NC_OK;
+}
+
+void
+proxy_restore(struct context *ctx, struct conn *conn)
+{
 }

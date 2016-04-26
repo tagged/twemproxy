@@ -172,6 +172,7 @@ conf_server_each_transform(void *elem, void *data)
 
     s->next_retry = 0LL;
     s->failure_count = 0;
+    s->fail = FAIL_STATUS_NORMAL;
 
     /* proxy will set sentinel flag after server transform */
     s->sentinel = 0;
@@ -430,7 +431,7 @@ conf_rewrite(struct context *ctx)
     struct conf_server *cs;
     struct string true_str, false_str, bool_str;
     FILE *fh;
-    char tmp_conf_file[256];
+    char temp_conf_file[256];
 
     cf = ctx->cf;
 
@@ -442,11 +443,12 @@ conf_rewrite(struct context *ctx)
     log_debug(LOG_VVERB, "%"PRIu32" pools in configuration file '%s'", npool,
               cf->fname);
 
-    /* open tmp conf file to rewrite */
-    nc_snprintf(tmp_conf_file, 256, "%s.%d.tmp", cf->fname, (int) getpid());
-    fh = fopen(tmp_conf_file,"w");
+    /* open temp conf file to rewrite */
+    nc_snprintf(temp_conf_file, 256, "%s.%d.temp", cf->fname, (int)getpid());
+    fh = fopen(temp_conf_file,"w");
     if (fh == NULL) {
-        log_error("conf: failed to open tmp configuration file to rewrite");
+        log_error("conf: failed to open temp configuration '%s': %s",
+                  temp_conf_file, strerror(errno));
         return;
     }
 
@@ -531,9 +533,10 @@ conf_rewrite(struct context *ctx)
 
     fclose(fh);
 
-    if (rename(tmp_conf_file, cf->fname) == -1) {
-        log_error("Error moving temp conf file on the final destination: %s", strerror(errno));
-        unlink(tmp_conf_file);
+    if (rename(temp_conf_file, cf->fname) == -1) {
+        log_error("conf: failed to move temp configuration '%s' to '%s': %s",
+                  temp_conf_file, cf->fname, strerror(errno));
+        unlink(temp_conf_file);
     }
 }
 
@@ -1315,6 +1318,14 @@ conf_pre_validate(struct conf *cf)
 }
 
 static int
+conf_server_pname_cmp(const void *t1, const void *t2)
+{
+    const struct conf_server *s1 = t1, *s2 = t2;
+
+    return string_compare(&s1->pname, &s2->pname);
+}
+
+static int
 conf_server_name_cmp(const void *t1, const void *t2)
 {
     const struct conf_server *s1 = t1, *s2 = t2;
@@ -1357,6 +1368,25 @@ conf_validate_server(struct conf *cf, struct conf_pool *cp)
      * is configured, we only check for duplicate "name" and not for duplicate
      * "host:port:weight"
      */
+    array_sort(&cp->server, conf_server_pname_cmp);
+    for (valid = true, i = 0; i < nserver - 1; i++) {
+        struct conf_server *cs1, *cs2;
+
+        cs1 = array_get(&cp->server, i);
+        cs2 = array_get(&cp->server, i + 1);
+
+        if (string_compare(&cs1->pname, &cs2->pname) == 0) {
+            log_error("conf: pool '%.*s' has servers with same pname '%.*s'",
+                     cp->name.len, cp->name.data, cs1->pname.len,
+                     cs1->pname.data);
+            valid = false;
+            break;
+        }
+    }
+    if (!valid) {
+        return NC_ERROR;
+    }
+
     array_sort(&cp->server, conf_server_name_cmp);
     for (valid = true, i = 0; i < nserver - 1; i++) {
         struct conf_server *cs1, *cs2;

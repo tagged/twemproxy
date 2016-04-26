@@ -20,6 +20,8 @@
 
 #include <nc_core.h>
 
+#define CLIENT_KEEP_INTERVAL    72
+
 void proxy_ref(struct conn *conn, void *owner);
 void proxy_unref(struct conn *conn);
 void proxy_close(struct context *ctx, struct conn *conn);
@@ -30,5 +32,6 @@ rstatus_t proxy_each_deinit(void *elem, void *data);
 rstatus_t proxy_init(struct context *ctx);
 void proxy_deinit(struct context *ctx);
 rstatus_t proxy_recv(struct context *ctx, struct conn *conn);
+void proxy_restore(struct context *ctx, struct conn *conn);
 
 #endif
