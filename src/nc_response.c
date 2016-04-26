@@ -216,7 +216,7 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
                   conn->sd);
 
         if (server->fail == FAIL_STATUS_ERR_TRY_HEARTBEAT) {
-            if (type != MSG_RSP_REDIS_ERROR) {
+            if (msg->type != MSG_RSP_REDIS_ERROR) {
                 struct conn *c_conn;
 
                 c_conn = pmsg->owner; 

@@ -179,9 +179,8 @@ core_ctx_destroy(struct context *ctx)
     log_debug(LOG_VVERB, "destroy ctx %p id %"PRIu32"", ctx, ctx->id);
     proxy_deinit(ctx);
     server_pool_disconnect(ctx);
-    //event_base_destroy(ctx->evb); XXX(misha): do we need this?
+    event_base_destroy(ctx->evb);
     core_failed_servers_deinit(ctx);
-    evbase_destroy(ctx->evb);
     stats_destroy(ctx->stats);
     server_pool_deinit(&ctx->pool);
     conf_destroy(ctx->cf);
