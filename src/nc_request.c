@@ -622,13 +622,11 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     ASSERT(!s_conn->client && !s_conn->proxy);
 
     /* enqueue the message (request) into server inq */
-    if (TAILQ_EMPTY(&s_conn->imsg_q)) {
-        status = event_add_out(ctx->evb, s_conn);
-        if (status != NC_OK) {
-            req_forward_error(ctx, c_conn, msg);
-            s_conn->err = errno;
-            return;
-        }
+    status = event_add_out_with_conn(ctx, s_conn, msg);
+    if (status != NC_OK) {
+        req_forward_error(ctx, c_conn, msg);
+        s_conn->err = errno;
+        return;
     }
 
     if (!conn_authenticated(s_conn)) {
@@ -796,4 +794,20 @@ req_send_done(struct context *ctx, struct conn *conn, struct msg *msg)
     } else {
         req_put(msg);
     }
+}
+
+rstatus_t
+event_add_out_with_conn(struct context *ctx, struct conn *conn, struct msg *msg)
+{
+    rstatus_t status;
+
+    if (TAILQ_EMPTY(&conn->imsg_q)) {
+        status = event_add_out(ctx->evb, conn);
+        if (status != NC_OK) {
+            return status;
+        }
+    }
+
+    conn->enqueue_inq(ctx, conn, msg);
+    return NC_OK;
 }

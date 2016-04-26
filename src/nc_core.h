@@ -131,6 +131,11 @@ struct context {
     uint32_t           max_nfd;     /* max # files */
     uint32_t           max_ncconn;  /* max # client connections */
     uint32_t           max_nsconn;  /* max # server connections */
+
+    struct array       failed_servers[2];   /* failed servers */
+    struct array       *fails;              /* ref of current fails server */
+
+    int                failed_idx;           /* current idx for failed servers */
 };
 
 
