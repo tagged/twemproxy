@@ -1,11 +1,11 @@
-.TH NUTCRACKER 8 "June 13, 2013"
+.TH NUTREDIS 8 "June 13, 2013"
 .SH NAME
-nutcracker \- Fast, light-weight proxy for memcached and Redis
+nutredis \- Fast, light-weight proxy for memcached and Redis
 .SH SYNOPSIS
-.B nutcracker
+.B nutredis
 .RI [ options ]
 .SH DESCRIPTION
-\fBnutcracker\fP, also known as \fBtwemproxy\fP (pronounced "two-em-proxy"), is
+\fBnutredis\fP, also known as \fBnutcracker\fP and \fBtwemproxy\fP (pronounced "two-em-proxy"), is
 a fast and lightweight proxy for the memcached and Redis protocols.
 .PP
 It was primarily built to reduce the connection count on backend caching
@@ -73,4 +73,4 @@ Set pid file to \fIfilename\fP.
 .BR redis-server (1)
 .br
 .SH AUTHOR
-nutcracker was written by Twitter, Inc.
+nutredis is a fork with andyqzb's Redis Sentinel patch. nutcracker was written by Twitter, Inc.
