@@ -1,24 +1,16 @@
-# twemproxy (nutcracker) [![Build Status](https://secure.travis-ci.org/twitter/twemproxy.png)](http://travis-ci.org/twitter/twemproxy)
+# twemproxy (nutcracker)
 
 **twemproxy** (pronounced "two-em-proxy"), aka **nutcracker** is a fast and lightweight proxy for [memcached](http://www.memcached.org/) and [redis](http://redis.io/) protocol. It was built primarily to reduce the number of connections to the caching servers on the backend. This, together with protocol pipelining and sharding enables you to horizontally scale your distributed caching architecture.
 
+This is [if(we)][https://github.com/ifwe/]'s fork of twemproxy which has @andyqzb's patch adding Redis Sentinel support merged in. See https://github.com/twitter/twemproxy/pull/324
+
+If you are looking to use this fork, you most likely want the `master` branch.
+
 ## Build
-
-To build twemproxy from [distribution tarball](https://drive.google.com/open?id=0B6pVMMV5F5dfMUdJV25abllhUWM&authuser=0):
-
-    $ ./configure
-    $ make
-    $ sudo make install
-
-To build twemproxy from [distribution tarball](https://drive.google.com/open?id=0B6pVMMV5F5dfMUdJV25abllhUWM&authuser=0) in _debug mode_:
-
-    $ CFLAGS="-ggdb3 -O0" ./configure --enable-debug=full
-    $ make
-    $ sudo make install
 
 To build twemproxy from source with _debug logs enabled_ and _assertions enabled_:
 
-    $ git clone git@github.com:twitter/twemproxy.git
+    $ git clone https://github.com/ifwe/twemproxy.git
     $ cd twemproxy
     $ autoreconf -fvi
     $ ./configure --enable-debug=full
