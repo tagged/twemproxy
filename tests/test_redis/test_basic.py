@@ -55,6 +55,7 @@ def test_slow_req():
 def test_signal():
     #init
     nc.cleanlog()
+    time.sleep(.1)
     nc.signal('HUP')
 
     nc.signal('HUP')

@@ -13,7 +13,7 @@ usage
     pip install git+https://github.com/andymccurdy/redis-py.git@2.10.3
     pip install git+https://github.com/idning/python-memcached.git#egg=memcache
 
-2. copy binarys to _binaries/::
+2. copy binaries to _binaries/ (Note: The ifwe/build-nutredis builds a binary called `nutredis`. Copy `nutredis` to `_binaries/tests/nutcracker` instead) ::
 
     _binaries/
     |-- nutcracker
