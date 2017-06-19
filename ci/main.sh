@@ -33,4 +33,4 @@ docker run \
    --rm \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   nosetests -v test_redis
+   nosetests -v $TESTS

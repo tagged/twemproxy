@@ -4,9 +4,8 @@
 
 This is [if(we)](https://github.com/ifwe/)'s fork of twemproxy which has [@andyqzb](http://github.com/andyqzb)'s patch adding Redis Sentinel support merged in. See https://github.com/twitter/twemproxy/pull/324
 
-If you are looking to use this fork, you most likely want the `master` branch.
-
-## Build
+If you are looking to use this for redis, you most likely want the `build-nutredis` branch.
+If you are looking to use this for memcached, you most likely want the `master` branch.
 
 To build twemproxy from source with _debug logs enabled_ and _assertions enabled_:
 
