@@ -1,6 +1,6 @@
-language: c
-script: TRAVIS=true ./travis.sh
+services:
+ - docker
 
-dist: trusty
+script: ./travis.sh
 
 sudo: required

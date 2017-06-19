@@ -18,7 +18,7 @@ def _test(req, resp, sleep=0):
     s.settimeout(.3)
 
     data = s.recv(10000)
-    assert data == resp, "Got: " + str(data)
+    assert data == resp, "Got: " + repr(str(data)) + "\nWant: " + repr(str(resp))
 
 def test_slow():
     req = '*1\r\n$4\r\nPING\r\n'
