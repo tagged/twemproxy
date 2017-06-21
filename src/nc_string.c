@@ -108,6 +108,17 @@ string_compare(const struct string *s1, const struct string *s2)
     return nc_strncmp(s1->data, s2->data, s1->len);
 }
 
+/* Returns true if `prefix` is a prefix of `s1` */
+bool
+string_has_prefix(const struct string *s1, const struct string *prefix)
+{
+    if (s1->len < prefix->len) {
+        return false;
+    }
+
+    return nc_strncmp(s1->data, prefix->data, prefix->len) == 0;
+}
+
 static char *
 _safe_utoa(int _base, uint64_t val, char *buf)
 {
