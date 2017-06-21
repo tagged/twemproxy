@@ -1,3 +1,6 @@
 language: c
-script: bash ./travis.sh
+script: TRAVIS=true ./travis.sh
 
+dist: trusty
+
+sudo: required
