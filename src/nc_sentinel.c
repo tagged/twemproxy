@@ -151,8 +151,8 @@ sentinel_proc_sentinel_info(struct context *ctx, struct server *sentinel, struct
         goto error;
     }
 
-    /* skip 3 line in ack info which is not used. */
-    msg_read_line(msg, line_buf, 3);
+    /* skip 4 line in ack info which is not used. */
+    msg_read_line(msg, line_buf, 4);
     if (mbuf_length(line_buf) == 0) {
         log_error("read line failed from sentinel ack info when skip line not used.");
         goto error;
