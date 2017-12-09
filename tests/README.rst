@@ -69,6 +69,6 @@ T_LOGFILE:
 notes
 =====
 
-- After all the tests. you may got a core because we have a case in test_signal which will send SEGV to nutcracker
+- After all the tests. you get a core dump because we have a case in test_signal which will send SEGV to nutcracker
 
-
+- If tests are failing, you may have to `pkill` redis-server, redis-sentinel, or nutcracker
