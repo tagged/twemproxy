@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #coding: utf-8
 
+from nose.tools import nottest
 from common import *
 
 def test_setget():
@@ -38,7 +39,21 @@ def test_ping_quit():
 
     assert_fail('Socket closed|Connection closed', r.execute_command, 'QUIT')
 
-def test_slow_req():
+def test_slow_req_lua():
+    r = getconn()
+    pipe = r.pipeline(transaction=False)
+    pipe.eval("local x=0;for i = 1,300000000,1 do x = x+ i; end; return x", 1, 'tmp')
+    assert_fail('timed out', pipe.execute)
+
+def test_fast_req_lua():
+    r = getconn()
+    pipe = r.pipeline(transaction=False)
+    pipe.eval("local x=0;for i = 1,100,1 do x = x+ i; end; return x", 1, 'tmp')
+    assert_equal([5050], pipe.execute())
+
+# Disabled because this uses a lot of memory and would sometimes complete before the timeout.
+@nottest
+def disabled_test_slow_req():
     r = getconn()
 
     kv = {'mkkk-%s' % i : 'mvvv-%s' % i for i in range(500000)}
