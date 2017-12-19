@@ -29,9 +29,9 @@ docker build -f ci/Dockerfile \
 TESTS="test_redis test_system"
 
 # Run nose tests
-# TODO: Re-enable test_system after fixing sentinel bugs(Sentinel tests don't work on master, and we use build-nutredis branch for sentinel support)
+# TODO: test_system for reloading nutcracker config is failing
 docker run \
    --rm \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   nosetests -v test_redis test_memcache
+   nosetests -v test_redis test_memcache test_system.test_sentinel
