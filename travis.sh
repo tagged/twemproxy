@@ -21,7 +21,7 @@ rm -rf twemproxy
 
 DOCKER_TAG=twemproxy-$PACKAGE_NAME:$TAG
 
-docker build -f ci/Dockerfile.nutredis \
+docker build -f ci/Dockerfile \
    --tag $DOCKER_TAG \
    .
 
