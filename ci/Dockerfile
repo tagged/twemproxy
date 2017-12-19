@@ -1,4 +1,4 @@
-# Dockerfile to build nutredis
+# Dockerfile to build nutcracker
 # ARGS: none
 # Also see travis.sh
 FROM centos:7
@@ -47,8 +47,8 @@ ADD ChangeLog configure.ac Makefile.am LICENSE NOTICE README.md /usr/src/twempro
 WORKDIR /usr/src/twemproxy
 
 
-ADD ci/build-nutredis.sh /usr/local/bin/build-nutredis.sh
-RUN /usr/local/bin/build-nutredis.sh
+ADD ci/build-nutcracker.sh /usr/local/bin/build-nutcracker.sh
+RUN /usr/local/bin/build-nutcracker.sh
 
 # Add the tests after adding source files, which makes it easy to quickly test changes to unit tests.
 ADD tests /usr/src/twemproxy/tests
@@ -56,8 +56,7 @@ ADD tests /usr/src/twemproxy/tests
 # Not installing redis utilities, since we're not running those tests.
 RUN mkdir tests/_binaries -p
 
-RUN ln -nsf $PWD/src/nutredis tests/_binaries/nutredis && \
-	ln -nsf $PWD/src/nutredis tests/_binaries/nutcracker && \
+RUN ln -nsf $PWD/src/nutcracker tests/_binaries/nutcracker && \
     cp `which redis-server` tests/_binaries/redis-server && \
     cp `which redis-server` tests/_binaries/redis-sentinel && \
     cp `which redis-cli` tests/_binaries/redis-cli
@@ -67,4 +66,5 @@ WORKDIR /usr/src/twemproxy/tests
 # Allow tests to open log files
 RUN chmod -R a+w log/
 RUN cat /etc/passwd
+RUN chown -R daemon:daemon /usr/src/twemproxy
 USER daemon

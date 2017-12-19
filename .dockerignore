@@ -2,6 +2,7 @@ Dockerfile*
 **/Dockerfile*
 *.gz
 src/nutredis
+src/nutcracker
 tests/_binaries/*
 
 ### Entries copied from .gitignore

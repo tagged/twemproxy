@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Main ci script for nutredis tests
+# Main ci script for nutcracker tests
 set -xeu
 
 function print_usage() {
@@ -12,7 +12,7 @@ if [[ "$#" > 0 ]]; then
     print_usage
 fi
 
-PACKAGE_NAME="nutredisci"
+PACKAGE_NAME="nutcrackerci"
 
 TAG=$( git describe --always )
 DOCKER_IMG_NAME=twemproxy-build-$PACKAGE_NAME-$TAG
@@ -25,7 +25,7 @@ docker build -f ci/Dockerfile \
    --tag $DOCKER_TAG \
    .
 
-# Run all unit tests that apply to nutredis
+# Run all unit tests that apply to nutcracker
 TESTS="test_redis test_system"
 
 # Run nose tests
