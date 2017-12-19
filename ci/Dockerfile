@@ -11,6 +11,7 @@ ENV LAST_MODIFIED_DATE 2017-12-08
 RUN yum install -y \
         tar git gcc make tcl \
         autoconf automake libtool wget \
+        memcached \
 		socat \
 		which \
 		python-setuptools && \
@@ -59,6 +60,7 @@ RUN mkdir tests/_binaries -p
 RUN ln -nsf $PWD/src/nutcracker tests/_binaries/nutcracker && \
     cp `which redis-server` tests/_binaries/redis-server && \
     cp `which redis-server` tests/_binaries/redis-sentinel && \
+    cp `which memcached` tests/_binaries/memcached && \
     cp `which redis-cli` tests/_binaries/redis-cli
 
 WORKDIR /usr/src/twemproxy/tests
