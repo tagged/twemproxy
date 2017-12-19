@@ -10,7 +10,7 @@ usage
 1. install dependency::
 
     pip install nose
-    pip install git+https://github.com/andymccurdy/redis-py.git@2.10.3
+    pip install git+https://github.com/andymccurdy/redis-py.git@2.10.6
     pip install git+https://github.com/idning/python-memcached.git#egg=memcache
 
 2. copy binaries to _binaries/ (Note: The ifwe/build-nutredis builds a binary called `nutredis`. Copy `nutredis` to `_binaries/tests/nutcracker` instead) ::
@@ -69,6 +69,6 @@ T_LOGFILE:
 notes
 =====
 
-- After all the tests. you may got a core because we have a case in test_signal which will send SEGV to nutcracker
+- After all the tests. you get a core dump because we have a case in test_signal which will send SEGV to nutcracker
 
-
+- If tests are failing, you may have to `pkill` redis-server, redis-sentinel, or nutcracker

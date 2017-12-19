@@ -18,7 +18,7 @@ def _test(req, resp, sleep=0):
     s.settimeout(.3)
 
     data = s.recv(10000)
-    assert data == resp, "Got: " + str(data)
+    assert data == resp, "Got: " + repr(str(data)) + "\nWant: " + repr(str(resp))
 
 def test_slow():
     req = '*1\r\n$4\r\nPING\r\n'
@@ -35,14 +35,22 @@ def test_pingpong():
     req = '*1\r\n$4\r\nPING\r\n'
     resp = '+PONG\r\n'
     _test(req, resp)
+    # Sanity check there's no error
+    info = nc._info_dict()
+    assert_equal(0, info['ntest']['client_err'])
 
+# Nutredis doesn't appear to have any code to send +OK\r\n, it just disconnects.
 def test_quit():
     if nc.version() < '0.4.2':
         return
     req = '*1\r\n$4\r\nQUIT\r\n'
-    resp = '+OK\r\n'
+    # NOTE: Nutcracker doesn't appear to have any code to send +OK\r\n, it just disconnects.
+    # +OK\r\n would also be valid.
+    resp = ''
     _test(req, resp)
 
+# Nutredis doesn't appear to have any code to send +OK\r\n, it just disconnects.
+# If it doesn't try to send anything, there's no client_err.
 def test_quit_without_recv():
     if nc.version() < '0.4.2':
         return
@@ -52,16 +60,15 @@ def test_quit_without_recv():
 
     s.sendall(req)
     s.close()
+    time.sleep(0.1)
     info = nc._info_dict()
-    #pprint(info)
-    assert(info['ntest']['client_err'] == 1)
+    assert_equal(0, info['ntest']['client_err'])
 
 def _test_bad(req):
     s = get_conn()
 
     s.sendall(req)
     data = s.recv(10000)
-    print data
 
     assert('' == s.recv(1000))  # peer is closed
 

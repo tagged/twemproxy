@@ -1,6 +1,10 @@
-# twemproxy (nutcracker) [![Build Status](https://secure.travis-ci.org/twitter/twemproxy.png)](http://travis-ci.org/twitter/twemproxy)
+# twemproxy (nutcracker)
 
 **twemproxy** (pronounced "two-em-proxy"), aka **nutcracker** is a fast and lightweight proxy for [memcached](http://www.memcached.org/) and [redis](http://redis.io/) protocol. It was built primarily to reduce the number of connections to the caching servers on the backend. This, together with protocol pipelining and sharding enables you to horizontally scale your distributed caching architecture.
+
+This is [if(we)](https://github.com/ifwe/)'s fork of twemproxy which has [@andyqzb](http://github.com/andyqzb)'s patch adding Redis Sentinel support merged in. See https://github.com/twitter/twemproxy/pull/324
+
+If you are looking to use this for redis, you most likely want the `master` branch.
 
 ## Build
 
@@ -18,7 +22,7 @@ To build twemproxy from [distribution tarball](https://drive.google.com/open?id=
 
 To build twemproxy from source with _debug logs enabled_ and _assertions enabled_:
 
-    $ git clone git@github.com:twitter/twemproxy.git
+    $ git clone https://github.com/ifwe/twemproxy.git
     $ cd twemproxy
     $ autoreconf -fvi
     $ ./configure --enable-debug=full
@@ -276,6 +280,7 @@ https://launchpad.net/~twemproxy/+archive/ubuntu/daily
 
 ## Companies using Twemproxy in Production
 + [Twitter](https://twitter.com/)
++ [if(we)](http://ifwe.co)
 + [Wikimedia](https://www.wikimedia.org/)
 + [Pinterest](http://pinterest.com/)
 + [Snapchat](http://www.snapchat.com/)
