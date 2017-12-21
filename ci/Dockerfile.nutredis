@@ -16,6 +16,7 @@ RUN yum install -y \
         autoconf automake libtool wget \
 		socat \
 		which \
+		memcached \
 		python36u python36u-pip && \
 	yum clean all
 
@@ -62,6 +63,7 @@ RUN ln -nsf $PWD/src/nutredis tests/_binaries/nutredis && \
 	ln -nsf $PWD/src/nutredis tests/_binaries/nutcracker && \
     cp `which redis-server` tests/_binaries/redis-server && \
     cp `which redis-server` tests/_binaries/redis-sentinel && \
+    cp `which memcached` tests/_binaries/memcached && \
     cp `which redis-cli` tests/_binaries/redis-cli
 
 WORKDIR /usr/src/twemproxy/tests

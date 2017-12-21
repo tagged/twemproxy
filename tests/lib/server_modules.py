@@ -50,7 +50,7 @@ class Base:
         self._gen_control_script()
 
     def _gen_control_script(self):
-        content = file(os.path.join(WORKDIR, 'conf/control.sh')).read()
+        content = open(os.path.join(WORKDIR, 'conf/control.sh'), 'r').read()
         content = TT(content, self.args)
 
         control_filename = TT('${path}/${name}_control', self.args)
@@ -159,7 +159,7 @@ class RedisServer(Base):
         return strstr(self._ping(), 'PONG')
 
     def _gen_conf(self):
-        content = file(os.path.join(WORKDIR, 'conf/redis.conf')).read()
+        content = open(os.path.join(WORKDIR, 'conf/redis.conf'), 'r').read()
         content = TT(content, self.args)
         if self.args['auth']:
             content += '\r\nrequirepass %s' % self.args['auth']

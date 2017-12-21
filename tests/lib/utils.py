@@ -77,6 +77,9 @@ def json_encode(j):
     return json.dumps(j, indent=4, cls=MyEncoder)
 
 def json_decode(j):
+    if isinstance(j, bytes):
+        j = str(j, encoding="utf-8")
+
     return json.loads(j)
 
 #commands does not work on windows..
