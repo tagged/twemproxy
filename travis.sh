@@ -33,4 +33,4 @@ docker run \
    --rm \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   ./nosetests_verbose.sh test_redis
+   ./nosetests_verbose.sh test_memcache test_redis

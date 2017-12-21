@@ -9,26 +9,27 @@ def test_setget():
 
     rst = r.set('k', 'v')
     assert_equal(True, rst)
-    assert(r.get('k') == 'v')
+    assert_equal(b'v', r.get('k'))
 
 def test_msetnx():
     r = getconn()
 
     # https://redis.io/commands/msetnx
     # MSETNX not supported when sharded?
-    assert_fail('Socket closed|Connection closed', r.msetnx,**default_kv)
+    normalized_kv = {str(key, encoding='utf-8'): val for key, val in default_kv.items()}
+    assert_fail('Socket closed|Connection closed', r.msetnx,**normalized_kv)
 
 def test_null_key():
     r = getconn()
     rst = r.set('', 'v')
-    assert(r.get('') == 'v')
+    assert_equal(b'v', r.get(''))
 
     rst = r.set('', '')
-    assert(r.get('') == '')
+    assert_equal(b'', r.get(''))
 
     kv = {'' : 'val', 'k': 'v'}
     ret = r.mset(**kv)
-    assert(r.get('') == 'val')
+    assert_equal(b'val', r.get(''))
 
 def test_ping_quit():
     r = getconn()
@@ -36,7 +37,7 @@ def test_ping_quit():
 
     #get set
     rst = r.set('k', 'v')
-    assert(r.get('k') == 'v')
+    assert_equal(b'v', r.get('k'))
 
     assert_fail('Socket closed|Connection closed', r.execute_command, 'QUIT')
 
@@ -133,11 +134,11 @@ def test_issue_323():
     # do on redis
     r = all_redis[0]
     c = redis.Redis(r.host(), r.port())
-    assert([1, 'OK'] == c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
+    assert_equal([1, b'OK'], c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
 
     # do on twemproxy
     c = getconn()
-    assert([1, 'OK'] == c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
+    assert_equal([1, b'OK'], c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
 
 def setup_and_wait():
     time.sleep(60*60)

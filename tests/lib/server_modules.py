@@ -62,7 +62,7 @@ class Base:
 
     def start(self):
         if self._alive():
-            logging.warn('%s already running' % (self))
+            logging.warning('%s already running' % (self))
             return
 
         logging.debug('starting %s' % self)
@@ -78,14 +78,14 @@ class Base:
                 sleeptime *= 2
             else:
                 sleeptime = 5.0
-                logging.warn('%s still not alive' % self)
+                logging.warning('%s still not alive' % self)
 
         t2 = time.time()
         logging.info('%s start ok in %.2f seconds' %(self, t2-t1))
 
     def stop(self):
         if not self._alive():
-            logging.garn('%s already stop' %(self))
+            logging.warning('%s already stop' %(self))
             return
 
         cmd = TT("cd $path && ./${name}_control stop", self.args)
@@ -102,10 +102,10 @@ class Base:
         return self._run(cmd)
 
     def status(self):
-        logging.warn("status: not implement")
+        logging.warning("status: not implement")
 
     def _alive(self):
-        logging.warn("_alive: not implement")
+        logging.warning("_alive: not implement")
 
     def _run(self, raw_cmd):
         ret = system(raw_cmd, logging.debug)

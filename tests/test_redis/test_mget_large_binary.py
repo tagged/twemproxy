@@ -27,8 +27,8 @@ def teardown():
 def test_mget_binary_value(cnt=5):
     kv = {}
     for i in range(cnt):
-        kv['kkk-%s' % i] = os.urandom(1024*1024*16+1024) #16M
+        kv[bytes('kkk-%s' % i, encoding='utf-8')] = os.urandom(1024*1024*16+1024) #16M
     for i in range(cnt):
-        kv['kkk2-%s' % i] = ''
+        kv[bytes('kkk2-%s' % i, encoding='utf-8')] = b''
     _mget_mset(kv)
 

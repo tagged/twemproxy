@@ -54,7 +54,7 @@ def test_mget_mset_on_key_not_exist(kv=default_kv):
         insert_by_pipeline()
 
     keys = list(kv.keys())
-    keys2 = ['x-'+k for k in keys]
+    keys2 = [b'x-'+k for k in keys]
     keys = keys + keys2
     random.shuffle(keys)
 
@@ -77,16 +77,16 @@ def test_mget_mset_on_key_not_exist(kv=default_kv):
 
 def test_mget_mset_large():
     for cnt in range(171, large, 171):
-        kv = {'kkk-%s' % i :'vvv-%s' % i for i in range(cnt)}
+        kv = {b'kkk-%d' % i : b'vvv-%d' % i for i in range(cnt)}
         test_mget_mset(kv)
 
 def test_mget_special_key(cnt=5):
     #key length = 512-48-1
     kv = {}
     for i in range(cnt):
-        k = 'kkk-%s' % i
-        k = k + 'x'*(512-48-1-len(k))
-        kv[k] = 'vvv'
+        k = b'kkk-%d' % i
+        k = k + b'x'*(512-48-1-len(k))
+        kv[k] = b'vvv'
 
     test_mget_mset(kv)
 
@@ -94,9 +94,9 @@ def test_mget_special_key_2(cnt=5):
     #key length = 512-48-2
     kv = {}
     for i in range(cnt):
-        k = 'kkk-%s' % i
-        k = k + 'x'*(512-48-2-len(k))
-        kv[k] = 'vvv'*9
+        k = b'kkk-%d' % i
+        k = k + b'x'*(512-48-2-len(k))
+        kv[k] = b'vvv'*9
 
     test_mget_mset(kv)
 
@@ -151,7 +151,7 @@ def test_mget_pipeline():
     pipe.mget(keys)
     kv = {}
     for i in range(large):
-        kv['kkk-%s' % i] = os.urandom(100)
+        kv[b'kkk-%d' % i] = os.urandom(100)
     for k,v in list(kv.items()):
         pipe.set(k,v)
     for k in list(kv.keys()):

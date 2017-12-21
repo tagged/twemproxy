@@ -41,7 +41,7 @@ def teardown():
         assert(r._alive())
         r.stop()
 
-default_kv = {'kkk-%s' % i : 'vvv-%s' % i for i in range(10)}
+default_kv = {b'kkk-%d' % i : b'vvv-%d' % i for i in range(10)}
 
 def getconn():
     for r in all_redis:

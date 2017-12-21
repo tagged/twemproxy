@@ -32,7 +32,7 @@ def teardown():
         assert(r._alive())
         r.stop()
 
-default_kv = {bytes('kkk-%s' % i, encoding='utf-8') : bytes('vvv-%s', encoding='utf-8') % i for i in range(10)}
+default_kv = {bytes('kkk-%s' % i, encoding='utf-8') : bytes('vvv-%s' % i, encoding='utf-8') for i in range(10)}
 
 def getconn():
     r = redis.Redis(nc.host(), nc.port())
