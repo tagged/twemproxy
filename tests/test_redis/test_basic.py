@@ -8,13 +8,14 @@ def test_setget():
     r = getconn()
 
     rst = r.set('k', 'v')
+    assert_equal(True, rst)
     assert(r.get('k') == 'v')
 
 def test_msetnx():
     r = getconn()
 
-    #not supported
-    keys = list(default_kv.keys())
+    # https://redis.io/commands/msetnx
+    # MSETNX not supported when sharded?
     assert_fail('Socket closed|Connection closed', r.msetnx,**default_kv)
 
 def test_null_key():
