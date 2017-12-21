@@ -2,32 +2,34 @@
 #coding: utf-8
 
 from nose.tools import nottest
-from common import *
+from .common import *
 
 def test_setget():
     r = getconn()
 
     rst = r.set('k', 'v')
-    assert(r.get('k') == 'v')
+    assert_equal(True, rst)
+    assert_equal(b'v', r.get('k'))
 
 def test_msetnx():
     r = getconn()
 
-    #not supported
-    keys = default_kv.keys()
-    assert_fail('Socket closed|Connection closed', r.msetnx,**default_kv)
+    # https://redis.io/commands/msetnx
+    # MSETNX not supported when sharded?
+    normalized_kv = {str(key, encoding='utf-8'): val for key, val in default_kv.items()}
+    assert_fail('Socket closed|Connection closed', r.msetnx,**normalized_kv)
 
 def test_null_key():
     r = getconn()
     rst = r.set('', 'v')
-    assert(r.get('') == 'v')
+    assert_equal(b'v', r.get(''))
 
     rst = r.set('', '')
-    assert(r.get('') == '')
+    assert_equal(b'', r.get(''))
 
     kv = {'' : 'val', 'k': 'v'}
     ret = r.mset(**kv)
-    assert(r.get('') == 'val')
+    assert_equal(b'val', r.get(''))
 
 def test_ping_quit():
     r = getconn()
@@ -35,7 +37,7 @@ def test_ping_quit():
 
     #get set
     rst = r.set('k', 'v')
-    assert(r.get('k') == 'v')
+    assert_equal(b'v', r.get('k'))
 
     assert_fail('Socket closed|Connection closed', r.execute_command, 'QUIT')
 
@@ -79,7 +81,7 @@ def test_signal():
     nc.signal('SEGV')
 
     time.sleep(.3)
-    log = file(nc.logfile()).read()
+    log = open(nc.logfile(), 'r').read()
 
     assert(strstr(log, 'HUP'))
     assert(strstr(log, 'TTIN'))
@@ -94,7 +96,7 @@ def test_nc_stats():
     nc.start()
     r = getconn()
     kv = {'kkk-%s' % i :'vvv-%s' % i for i in range(10)}
-    for k, v in kv.items():
+    for k, v in list(kv.items()):
         r.set(k, v)
         r.get(k)
 
@@ -108,7 +110,7 @@ def test_nc_stats():
 
         #sum num of each server
         ret = 0
-        for k, v in stat[CLUSTER_NAME].items():
+        for k, v in list(stat[CLUSTER_NAME].items()):
             if type(v) == dict:
                 ret += v[name]
         return ret
@@ -117,7 +119,7 @@ def test_nc_stats():
     assert(get_stat('responses') == 20)
 
     ##### mget
-    keys = kv.keys()
+    keys = list(kv.keys())
     r.mget(keys)
 
     #for version<=0.3.0
@@ -132,11 +134,11 @@ def test_issue_323():
     # do on redis
     r = all_redis[0]
     c = redis.Redis(r.host(), r.port())
-    assert([1, 'OK'] == c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
+    assert_equal([1, b'OK'], c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
 
     # do on twemproxy
     c = getconn()
-    assert([1, 'OK'] == c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
+    assert_equal([1, b'OK'], c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
 
 def setup_and_wait():
     time.sleep(60*60)

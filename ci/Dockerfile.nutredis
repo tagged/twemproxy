@@ -8,19 +8,22 @@ ENV LAST_MODIFIED_DATE 2017-12-08
 # socat Allow tests to open log files
 # which (used below)
 # python-setuptools for pip
+RUN yum install -y https://centos7.iuscommunity.org/ius-release.rpm
+
+RUN yum list|grep -i centos
 RUN yum install -y \
         tar git gcc make tcl \
         autoconf automake libtool wget \
 		socat \
 		which \
-		python-setuptools && \
+		memcached \
+		python36u python36u-pip && \
 	yum clean all
 
 # Install nosetest dependencies
-RUN easy_install pip && \
-        pip install nose && \
-        pip install 'git+https://github.com/andymccurdy/redis-py.git@2.10.6' && \
-        pip install 'git+https://github.com/idning/python-memcached.git#egg=memcache'
+RUN pip3.6 install nose && \
+        pip3.6 install 'git+https://github.com/andymccurdy/redis-py.git@2.10.6' && \
+        pip3.6 install 'git+https://github.com/linsomniac/python-memcached.git@1.58'
 # I can't install redis or redis-server in centos:7 (didn't add package), adding to centos 6
 # Install redis and redis sentinel, needed for unit tests
 # RUN yum install -y redis redis-sentinel
@@ -60,11 +63,12 @@ RUN ln -nsf $PWD/src/nutredis tests/_binaries/nutredis && \
 	ln -nsf $PWD/src/nutredis tests/_binaries/nutcracker && \
     cp `which redis-server` tests/_binaries/redis-server && \
     cp `which redis-server` tests/_binaries/redis-sentinel && \
+    cp `which memcached` tests/_binaries/memcached && \
     cp `which redis-cli` tests/_binaries/redis-cli
 
 WORKDIR /usr/src/twemproxy/tests
 
 # Allow tests to open log files
 RUN chmod -R a+w log/
-RUN cat /etc/passwd
+RUN chown -R daemon:daemon .
 USER daemon
