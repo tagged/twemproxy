@@ -48,6 +48,7 @@ bool string_empty(const struct string *str);
 rstatus_t string_duplicate(struct string *dst, const struct string *src);
 rstatus_t string_copy(struct string *dst, const uint8_t *src, uint32_t srclen);
 int string_compare(const struct string *s1, const struct string *s2);
+bool string_has_prefix(const struct string *s1, const struct string *s2);
 
 /*
  * Wrapper around common routines for manipulating C character

@@ -1,3 +1,11 @@
+Dockerfile*
+**/Dockerfile*
+*.gz
+src/nutredis
+src/nutcracker
+tests/_binaries/*
+
+### Entries copied from .gitignore
 # pyc
 *.pyc
 
@@ -30,7 +38,6 @@
 *.~
 *.project
 *.cproject
-tags
 
 # Core and executable
 core*
@@ -48,22 +55,3 @@ nutcracker
 /stamp-h1
 /autoscan.log
 /libtool
-
-/config/config.guess
-/config/config.sub
-/config/depcomp
-/config/install-sh
-/config/ltmain.sh
-/config/missing
-/config
-
-/config.h
-/config.h.in
-/config.h.in~
-/config.log
-/config.status
-/configure.scan
-/configure
-
-Makefile
-Makefile.in
