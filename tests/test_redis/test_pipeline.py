@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #coding: utf-8
 
-from common import *
+from .common import *
 
 def test_pipeline():
     r = getconn()

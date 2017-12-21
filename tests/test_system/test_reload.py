@@ -72,7 +72,7 @@ def test_reload_with_old_conf():
 
     # nc.reload() is same as nc.stop() and nc.start()
     nc.reload()
-    time.sleep(.1)  #it need time for the old process fork new process.
+    time.sleep(.01)  #it need time for the old process fork new process.
 
     # the old connection is still ok in T_RELOAD_DELAY seconds
     send_cmd(conn, '*2\r\n$3\r\nGET\r\n$1\r\nk\r\n', '$1\r\nv\r\n')

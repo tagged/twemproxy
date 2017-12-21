@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #coding: utf-8
 
-from common import *
+from .common import *
 
 all_redis = [
     RedisServer('127.0.0.1', 2100, '/tmp/r/redis-2100/',
@@ -21,7 +21,7 @@ nc_nopass = NutCracker('127.0.0.1', 4102, '/tmp/r/nutcracker-4102', CLUSTER_NAME
                        all_redis, mbuf=mbuf, verbose=nc_verbose)
 
 def setup():
-    print 'setup(mbuf=%s, verbose=%s)' %(mbuf, nc_verbose)
+    print('setup(mbuf=%s, verbose=%s)' %(mbuf, nc_verbose))
     for r in all_redis + [nc, nc_badpass, nc_nopass]:
         r.clean()
         r.deploy()

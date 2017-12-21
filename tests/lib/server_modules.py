@@ -10,6 +10,11 @@ import sys
 from utils import *
 import conf
 
+if sys.version_info[0] < 3:
+    # Give a clear error message instead of a confusing one.
+    sys.stderr.write("Error: must use python 3 to run these nosetests, e.g. python3 -m nose [options] test_modules\n")
+    sys.exit(2)
+
 class Base:
     '''
     Sub class should implement:
@@ -53,7 +58,7 @@ class Base:
         fout = open(control_filename, 'w+')
         fout.write(content)
         fout.close()
-        os.chmod(control_filename, 0755)
+        os.chmod(control_filename, 0o755)
 
     def start(self):
         if self._alive():
@@ -218,7 +223,7 @@ sentinel failover-timeout $server_name 180000
         return cfg
 
     def _gen_conf(self):
-        content = file(os.path.join(WORKDIR, 'conf/sentinel.conf')).read()
+        content = open(os.path.join(WORKDIR, 'conf/sentinel.conf'), 'r').read()
         content = TT(content, self.args)
         if self.args['auth']:
             content += '\r\nrequirepass %s' % self.args['auth']
@@ -335,7 +340,7 @@ $cluster_name:
             c = telnetlib.Telnet(self.args['host'], self.args['status_port'])
             ret = c.read_all()
             return json_decode(ret)
-        except Exception, e:
+        except Exception as e:
             logging.debug('can not get _info_dict of nutcracker, \
                           [Exception: %s]' % (e, ))
             return None

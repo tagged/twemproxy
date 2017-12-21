@@ -2,7 +2,7 @@
 #coding: utf-8
 
 from nose.tools import nottest
-from common import *
+from .common import *
 
 def test_setget():
     r = getconn()
@@ -14,7 +14,7 @@ def test_msetnx():
     r = getconn()
 
     #not supported
-    keys = default_kv.keys()
+    keys = list(default_kv.keys())
     assert_fail('Socket closed|Connection closed', r.msetnx,**default_kv)
 
 def test_null_key():
@@ -94,7 +94,7 @@ def test_nc_stats():
     nc.start()
     r = getconn()
     kv = {'kkk-%s' % i :'vvv-%s' % i for i in range(10)}
-    for k, v in kv.items():
+    for k, v in list(kv.items()):
         r.set(k, v)
         r.get(k)
 
@@ -108,7 +108,7 @@ def test_nc_stats():
 
         #sum num of each server
         ret = 0
-        for k, v in stat[CLUSTER_NAME].items():
+        for k, v in list(stat[CLUSTER_NAME].items()):
             if type(v) == dict:
                 ret += v[name]
         return ret
@@ -117,7 +117,7 @@ def test_nc_stats():
     assert(get_stat('responses') == 20)
 
     ##### mget
-    keys = kv.keys()
+    keys = list(kv.keys())
     r.mget(keys)
 
     #for version<=0.3.0

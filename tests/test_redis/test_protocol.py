@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from common import *
+from .common import *
 from pprint import pprint
 
 def get_conn():
