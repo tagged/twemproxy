@@ -25,7 +25,7 @@ def test_mget_mset(kv=default_kv):
     #mget to check
     vals = r.mget(keys)
     for i, k in enumerate(keys):
-        assert(kv[k] == vals[i])
+        assert_equal(kv[k], vals[i])
 
     #del
     assert (len(keys) == r.delete(*keys) )
@@ -62,9 +62,9 @@ def test_mget_mset_on_key_not_exist(kv=default_kv):
     vals = r.mget(keys)
     for i, k in enumerate(keys):
         if k in kv:
-            assert(kv[k] == vals[i])
+            assert_equal(kv[k], vals[i])
         else:
-            assert(vals[i] == None)
+            assert_equal(None, vals[i])
 
     #del
     assert (len(kv) == r.delete(*keys) )
@@ -181,8 +181,9 @@ def test_multi_delete_normal():
 
     for i in range(100):
         r.set('key-%s'%i, 'val-%s'%i)
+
     for i in range(100):
-        assert_equal('val-%s'%i, r.get('key-%s'%i) )
+        assert_equal(bytes('val-%s'%i, encoding='utf-8'), r.get('key-%s'%i) )
 
     keys = ['key-%s'%i for i in range(100)]
     assert_equal(100, r.delete(*keys))
@@ -196,9 +197,9 @@ def test_multi_delete_on_readonly():
     r = redis.Redis(nc.host(), nc.port())
 
     # got "READONLY You can't write against a read only slave"
-    assert_fail('READONLY|Invalid', r.delete, 'key-1')
+    assert_fail('READONLY|Invalid|You can\'t write against a read only slave', r.delete, 'key-1')
     assert_equal(0, r.delete('key-2'))
-    assert_fail('READONLY|Invalid', r.delete, 'key-3')
+    assert_fail('READONLY|Invalid|You can\'t write against a read only slave', r.delete, 'key-3')
 
     keys = ['key-1', 'key-2', 'kkk-3']
     assert_fail('Invalid argument', r.delete, *keys)     # got "Invalid argument"

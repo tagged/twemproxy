@@ -32,7 +32,7 @@ def teardown():
         assert(r._alive())
         r.stop()
 
-default_kv = {'kkk-%s' % i : 'vvv-%s' % i for i in range(10)}
+default_kv = {bytes('kkk-%s' % i, encoding='utf-8') : bytes('vvv-%s', encoding='utf-8') % i for i in range(10)}
 
 def getconn():
     r = redis.Redis(nc.host(), nc.port())
@@ -71,7 +71,7 @@ def test_auth_basic():
         r.execute_command('AUTH', 'hellopasswd')
         r.set('k', 'v')
         assert(r.ping() == True)
-        assert(r.get('k') == 'v')
+        assert_equal(b'v', r.get('k'))
 
         # auth fail here, should we return ok or not => we will mark the conn state as not authed
         assert_fail('invalid password', r.execute_command, 'AUTH', 'badpasswd')

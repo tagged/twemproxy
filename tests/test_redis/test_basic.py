@@ -79,7 +79,7 @@ def test_signal():
     nc.signal('SEGV')
 
     time.sleep(.3)
-    log = file(nc.logfile()).read()
+    log = open(nc.logfile(), 'r').read()
 
     assert(strstr(log, 'HUP'))
     assert(strstr(log, 'TTIN'))

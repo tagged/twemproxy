@@ -21,8 +21,8 @@ def _test(req, resp, sleep=0):
     assert data == resp, "Got: " + repr(str(data)) + "\nWant: " + repr(str(resp))
 
 def test_slow():
-    req = '*1\r\n$4\r\nPING\r\n'
-    resp = '+PONG\r\n'
+    req = b'*1\r\n$4\r\nPING\r\n'
+    resp = b'+PONG\r\n'
 
     if large > 1000:
         sleep = 1
@@ -32,8 +32,8 @@ def test_slow():
     _test(req, resp, sleep)
 
 def test_pingpong():
-    req = '*1\r\n$4\r\nPING\r\n'
-    resp = '+PONG\r\n'
+    req = b'*1\r\n$4\r\nPING\r\n'
+    resp = b'+PONG\r\n'
     _test(req, resp)
     # Sanity check there's no error
     info = nc._info_dict()

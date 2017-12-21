@@ -41,7 +41,7 @@ def test_hscan():
 def test_hscan_large():
     r = getconn()
 
-    kv = {'x'* 100 + 'kkk-%s' % i : 'vvv-%s' % i for i in range(1000)}
+    kv = {'x'* 100 + 'kkk-%s' % i : bytes('vvv-%s' % i, encoding='utf-8') for i in range(1000)}
     r.hmset('a', kv)
 
     cursor = '0'
@@ -86,10 +86,10 @@ def test_sscan():
     r.sadd('a', 1, 2, 3)
 
     cursor, members = r.sscan('a')
-    assert(str(cursor) == '0')
-    assert(set(members) == set(['1', '2', '3']))
+    assert_equals('0', str(cursor))
+    assert_equals({b'1', b'2', b'3'}, set(members))
 
     cursor, members = r.sscan('a', match='1')
-    assert(str(cursor) == '0')
-    assert(set(members) == set(['1']))
+    assert_equals('0', str(cursor))
+    assert_equals({b'1'}, set(members))
 
