@@ -3,34 +3,38 @@
 set -xeu
 
 function print_usage() {
-    echo "Usage: $0" 1>&2
+    echo "Usage: $0 [REDIS_VER]" 1>&2
+    echo "e.g.   $0 3.2.12" 1>&2
     exit 1
 }
 
-if [[ "$#" > 0 ]]; then
+REDIS_VER=3.2.12
+if [[ "$#" > 1 ]]; then
     echo "Too many arguments" 1>&2
     print_usage
+elif [[ "$#" > 0 ]]; then
+	REDIS_VER="$1"
 fi
 
 PACKAGE_NAME="nutredisci"
 
 TAG=$( git describe --always )
-DOCKER_IMG_NAME=twemproxy-build-$PACKAGE_NAME-$TAG
+DOCKER_IMG_NAME=twemproxy-build-$PACKAGE_NAME-$REDIS_VER-$TAG
 
 rm -rf twemproxy
 
-DOCKER_TAG=twemproxy-$PACKAGE_NAME:$TAG
+DOCKER_TAG=twemproxy-$PACKAGE_NAME-$REDIS_VER:$TAG
 
 docker build -f ci/Dockerfile.nutredis \
    --tag $DOCKER_TAG \
+   --build-arg=REDIS_VER=$REDIS_VER \
    .
 
-# Run all unit tests that apply to nutredis
-TESTS="test_redis test_system"
-
 # Run nose tests
+# NOTE: test_system for reloading nutcracker config is failing
 docker run \
    --rm \
+   -e REDIS_VER=$REDIS_VER \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   ./nosetests_verbose.sh test_memcache test_redis
+   nosetests -v test_redis test_memcache test_system.test_sentinel
