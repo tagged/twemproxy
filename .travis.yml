@@ -5,8 +5,8 @@ services:
 # and to verify that unit tests of redis pass in all of those versions.
 env:
  - REDIS_VER=3.0.7
- - REDIS_VER=3.2.11
- - REDIS_VER=4.0.6
+ - REDIS_VER=3.2.12
+ - REDIS_VER=4.0.10
 
 script: ./travis.sh $REDIS_VER
 
