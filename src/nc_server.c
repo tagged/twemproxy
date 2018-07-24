@@ -690,7 +690,7 @@ server_switch(struct context *ctx, struct server *server,
     if (status != NC_OK) {
         return status;
     }
-    
+
     /* if the address is the same, return */
     if (!string_compare(&server->pname, &pname)) {
         string_deinit(&pname);
