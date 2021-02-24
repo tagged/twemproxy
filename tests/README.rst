@@ -11,9 +11,9 @@ usage
 
     pip install nose
     pip install git+https://github.com/andymccurdy/redis-py.git@2.10.6
-    pip install git+https://github.com/idning/python-memcached.git#egg=memcache
+    pip install git+https://github.com/linsomniac/python-memcached.git#egg=memcache
 
-2. copy binaries to _binaries/ (Note: The ifwe/build-nutredis builds a binary called `nutredis`. Copy `nutredis` to `_binaries/tests/nutcracker` instead) ::
+2. copy binaries to _binaries/::
 
     _binaries/
     |-- nutcracker
