@@ -7,13 +7,13 @@ see https://github.com/idning/twemproxy/blob/travis-ci/travis.sh
 usage
 =====
 
-1. install dependency::
+1. install dependency (redis-py must be 2.10 or newer)::
 
     pip install nose
     pip install git+https://github.com/andymccurdy/redis-py.git@2.10.6
-    pip install git+https://github.com/idning/python-memcached.git#egg=memcache
+    pip install git+https://github.com/linsomniac/python-memcached.git#egg=memcache
 
-2. copy binaries to _binaries/ (Note: The ifwe/build-nutredis builds a binary called `nutredis`. Copy `nutredis` to `_binaries/tests/nutcracker` instead) ::
+2. copy binaries to _binaries/::
 
     _binaries/
     |-- nutcracker

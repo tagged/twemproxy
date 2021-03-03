@@ -8,7 +8,9 @@ ENV LAST_MODIFIED_DATE 2017-12-08
 # socat Allow tests to open log files
 # which (used below)
 # python-setuptools for pip
-RUN yum install -y https://centos7.iuscommunity.org/ius-release.rpm
+RUN yum install -y \
+        https://repo.ius.io/ius-release-el7.rpm \
+        https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
 RUN yum install -y \
         tar git gcc make tcl \
