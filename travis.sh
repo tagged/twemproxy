@@ -37,4 +37,4 @@ docker run \
    -e REDIS_VER=$REDIS_VER \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   nosetests -v test_memcache test_system.test_sentinel
+   nosetests -v test_memcache
