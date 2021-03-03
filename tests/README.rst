@@ -7,7 +7,7 @@ see https://github.com/idning/twemproxy/blob/travis-ci/travis.sh
 usage
 =====
 
-1. install dependency::
+1. install dependency (redis-py must be 2.10 or newer)::
 
     pip install nose
     pip install git+https://github.com/andymccurdy/redis-py.git@2.10.6

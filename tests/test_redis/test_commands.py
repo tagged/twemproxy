@@ -87,7 +87,7 @@ def test_sscan():
     r.sadd('a', 1, 2, 3)
 
     cursor, members = r.sscan('a')
-    assert_equal('0', str(cursor))
+    assert_equal(0, cursor)
     assert_equal({b'1', b'2', b'3'}, set(members))
 
     cursor, members = r.sscan('a', match='1')
