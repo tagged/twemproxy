@@ -4,7 +4,7 @@ set -xeu
 
 function print_usage() {
     echo "Usage: $0 [REDIS_VER]" 1>&2
-    echo "e.g.   $0 3.2.11" 1>&2
+    echo "e.g.   $0 3.2.12" 1>&2
     exit 1
 }
 
