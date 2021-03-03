@@ -30,9 +30,6 @@ docker build -f ci/Dockerfile \
    --build-arg=REDIS_VER=$REDIS_VER \
    .
 
-# Run all unit tests that apply to nutcracker
-TESTS="test_redis test_system"
-
 # Run nose tests
 # TODO: test_system for reloading nutcracker config is failing
 docker run \
@@ -40,4 +37,4 @@ docker run \
    -e REDIS_VER=$REDIS_VER \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   nosetests -v test_redis test_memcache test_system.test_sentinel
+   nosetests -v test_memcache test_system.test_sentinel
