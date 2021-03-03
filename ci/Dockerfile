@@ -9,6 +9,10 @@ ENV LAST_MODIFIED_DATE 2017-12-08
 # which (used below)
 # python-setuptools for pip
 RUN yum install -y \
+        https://repo.ius.io/ius-release-el7.rpm \
+        https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
+RUN yum install -y \
         tar git gcc make tcl \
         autoconf automake libtool wget \
         memcached \
