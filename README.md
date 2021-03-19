@@ -256,16 +256,16 @@ https://launchpad.net/~twemproxy/+archive/ubuntu/daily
 + [munin-plugin](https://github.com/eveiga/contrib/tree/nutcracker/plugins/nutcracker)
 + [twemproxy-ganglia-module](https://github.com/ganglia/gmond_python_modules/tree/master/twemproxy)
 + [nagios checks](https://github.com/wanelo/nagios-checks/blob/master/check_twemproxy)
-+ [circunous](https://github.com/wanelo-chef/nad-checks/blob/master/recipes/twemproxy.rb)
++ [circonus](https://github.com/wanelo-chef/nad-checks/blob/master/recipes/twemproxy.rb)
 + [puppet module](https://github.com/wuakitv/puppet-twemproxy)
 + [nutcracker-web](https://github.com/kontera-technologies/nutcracker-web)
 + [redis-twemproxy agent](https://github.com/Stono/redis-twemproxy-agent)
-+ [sensu-metrics](https://github.com/sensu/sensu-community-plugins/blob/master/plugins/twemproxy/twemproxy-metrics.rb)
++ [sensu-metrics](https://github.com/sensu-plugins/sensu-plugins-twemproxy/blob/master/bin/metrics-twemproxy.rb)
 + [redis-mgr](https://github.com/idning/redis-mgr)
 + [smitty for twemproxy failover](https://github.com/areina/smitty)
 + [Beholder, a Python agent for twemproxy failover](https://github.com/Serekh/beholder)
 + [chef cookbook](https://supermarket.getchef.com/cookbooks/twemproxy)
-+ [twemsentinel] (https://github.com/yak0/twemsentinel)
++ [twemsentinel](https://github.com/yak0/twemsentinel)
 
 ## Companies using Twemproxy in Production
 + [Twitter](https://twitter.com/)
@@ -303,6 +303,7 @@ https://launchpad.net/~twemproxy/+archive/ubuntu/daily
 + [Hootsuite](https://hootsuite.com)
 + [Tradesy](https://www.tradesy.com/)
 + [Uber](http://uber.com) ([details](http://highscalability.com/blog/2015/9/14/how-uber-scales-their-real-time-market-platform.html))
++ [Greta](https://greta.io/)
 
 ## Issues and Support
 

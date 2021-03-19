@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #coding: utf-8
 #file   : server_modules.py
 #author : ning
@@ -9,6 +9,11 @@ import sys
 
 from utils import *
 import conf
+
+if sys.version_info[0] < 3:
+    # Give a clear error message instead of a confusing one.
+    sys.stderr.write("Error: must use python 3 to run these nosetests, e.g. python3 -m nose [options] test_modules\n")
+    sys.exit(2)
 
 class Base:
     '''
@@ -45,7 +50,7 @@ class Base:
         self._gen_control_script()
 
     def _gen_control_script(self):
-        content = file(os.path.join(WORKDIR, 'conf/control.sh')).read()
+        content = open(os.path.join(WORKDIR, 'conf/control.sh'), 'r').read()
         content = TT(content, self.args)
 
         control_filename = TT('${path}/${name}_control', self.args)
@@ -53,7 +58,7 @@ class Base:
         fout = open(control_filename, 'w+')
         fout.write(content)
         fout.close()
-        os.chmod(control_filename, 0755)
+        os.chmod(control_filename, 0o755)
 
     def start(self):
         if self._alive():
@@ -102,8 +107,8 @@ class Base:
     def _alive(self):
         logging.warn("_alive: not implement")
 
-    def _run(self, raw_cmd):
-        ret = system(raw_cmd, logging.debug)
+    def _run(self, raw_cmd, allow_failure = False):
+        ret = system(raw_cmd, logging.debug, allow_failure = allow_failure)
         logging.debug('return : [%d] [%s] ' % (len(ret), shorten(ret)) )
         return ret
 
@@ -148,13 +153,13 @@ class RedisServer(Base):
         cmd = TT('$REDIS_CLI -h $host -p $port PING', self.args)
         if self.args['auth']:
             cmd = TT('$REDIS_CLI -h $host -p $port -a $auth PING', self.args)
-        return self._run(cmd)
+        return self._run(cmd, allow_failure = True)
 
     def _alive(self):
         return strstr(self._ping(), 'PONG')
 
     def _gen_conf(self):
-        content = file(os.path.join(WORKDIR, 'conf/redis.conf')).read()
+        content = open(os.path.join(WORKDIR, 'conf/redis.conf'), 'r').read()
         content = TT(content, self.args)
         if self.args['auth']:
             content += '\r\nrequirepass %s' % self.args['auth']
@@ -218,7 +223,7 @@ sentinel failover-timeout $server_name 180000
         return cfg
 
     def _gen_conf(self):
-        content = file(os.path.join(WORKDIR, 'conf/sentinel.conf')).read()
+        content = open(os.path.join(WORKDIR, 'conf/sentinel.conf'), 'r').read()
         content = TT(content, self.args)
         if self.args['auth']:
             content += '\r\nrequirepass %s' % self.args['auth']
@@ -248,12 +253,12 @@ class Memcached(Base):
 
     def _alive(self):
         cmd = TT('echo "stats" | socat - TCP:$host:$port', self.args)
-        ret = self._run(cmd)
+        ret = self._run(cmd, allow_failure = True)
         return strstr(ret, 'END')
 
     def _pre_deploy(self):
         self.args['BINS'] = conf.BINARYS['MEMCACHED_BINS']
-        self._run(TT('cp $BINS $path/bin/', self.args))
+        self._run(TT('cp $BINS $path/bin/', self.args), allow_failure = True)
 
 class NutCracker(Base):
     def __init__(self, host, port, path, cluster_name, masters, mbuf=512,
@@ -335,7 +340,7 @@ $cluster_name:
             c = telnetlib.Telnet(self.args['host'], self.args['status_port'])
             ret = c.read_all()
             return json_decode(ret)
-        except Exception, e:
+        except Exception as e:
             logging.debug('can not get _info_dict of nutcracker, \
                           [Exception: %s]' % (e, ))
             return None
