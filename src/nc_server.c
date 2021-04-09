@@ -322,7 +322,7 @@ server_failure(struct context *ctx, struct server *server)
 
     next = now + pool->server_retry_timeout;
 
-    log_debug(LOG_INFO, "update pool %"PRIu32" '%.*s' to delete server '%.*s' "
+    log_debug(LOG_NOTICE, "update pool %"PRIu32" '%.*s' to delete server '%.*s' "
               "for next %"PRIu32" secs", pool->idx, pool->name.len,
               pool->name.data, server->pname.len, server->pname.data,
               pool->server_retry_timeout / 1000 / 1000);
@@ -423,7 +423,7 @@ server_close(struct context *ctx, struct conn *conn)
                 event_add_out(ctx->evb, msg->owner);
             }
 
-            log_debug(LOG_INFO, "close s %d schedule error for req %"PRIu64" "
+            log_debug(LOG_NOTICE, "close s %d schedule error for req %"PRIu64" "
                       "len %"PRIu32" type %d from c %d%c %s", conn->sd, msg->id,
                       msg->mlen, msg->type, c_conn->sd, conn->err ? ':' : ' ',
                       conn->err ? strerror(conn->err): " ");
@@ -456,7 +456,7 @@ server_close(struct context *ctx, struct conn *conn)
                 event_add_out(ctx->evb, msg->owner);
             }
 
-            log_debug(LOG_INFO, "close s %d schedule error for req %"PRIu64" "
+            log_debug(LOG_NOTICE, "close s %d schedule error for req %"PRIu64" "
                       "len %"PRIu32" type %d from c %d%c %s", conn->sd, msg->id,
                       msg->mlen, msg->type, c_conn->sd, conn->err ? ':' : ' ',
                       conn->err ? strerror(conn->err): " ");
@@ -473,7 +473,7 @@ server_close(struct context *ctx, struct conn *conn)
 
         rsp_put(msg);
 
-        log_debug(LOG_INFO, "close s %d discarding rsp %"PRIu64" len %"PRIu32" "
+        log_debug(LOG_NOTICE, "close s %d discarding rsp %"PRIu64" len %"PRIu32" "
                   "in error", conn->sd, msg->id, msg->mlen);
     }
 
@@ -690,7 +690,7 @@ server_switch(struct context *ctx, struct server *server,
     if (status != NC_OK) {
         return status;
     }
-    
+
     /* if the address is the same, return */
     if (!string_compare(&server->pname, &pname)) {
         string_deinit(&pname);
@@ -780,7 +780,7 @@ server_pool_update(struct server_pool *pool)
         return status;
     }
 
-    log_debug(LOG_INFO, "update pool %"PRIu32" '%.*s' to add %"PRIu32" servers",
+    log_debug(LOG_NOTICE, "update pool %"PRIu32" '%.*s' to add %"PRIu32" servers",
               pool->idx, pool->name.len, pool->name.data,
               pool->nlive_server - pnlive_server);
 
