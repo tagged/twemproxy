@@ -65,7 +65,7 @@ def test_auth_basic():
         assert_fail('NOAUTH|operation not permitted', r.get, 'k')
 
         # bad passwd
-        assert_fail('invalid password', r.execute_command, 'AUTH', 'badpasswd')
+        assert_fail('invalid password|WRONGPASS', r.execute_command, 'AUTH', 'badpasswd')
 
         # everything is ok after auth
         r.execute_command('AUTH', 'hellopasswd')

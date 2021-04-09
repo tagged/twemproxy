@@ -40,7 +40,7 @@ def test_pingpong():
     info = nc._info_dict()
     assert_equal(0, info['ntest']['client_err'])
 
-# Nutredis doesn't appear to have any code to send +OK\r\n, it just disconnects.
+# twemproxy for redis doesn't appear to have any code to send +OK\r\n, it just disconnects.
 def test_quit():
     if nc.version() < '0.4.2':
         return
@@ -50,7 +50,7 @@ def test_quit():
     resp = b''
     _test(req, resp)
 
-# Nutredis doesn't appear to have any code to send +OK\r\n, it just disconnects.
+# twemproxy for redis doesn't appear to have any code to send +OK\r\n, it just disconnects.
 # If it doesn't try to send anything, there's no client_err.
 def test_quit_without_recv():
     if nc.version() < '0.4.2':
