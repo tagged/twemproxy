@@ -45,7 +45,7 @@ function categorize(array $command, string $commandName): string {
         $minArgCount += ($data['min_arg'] ?? 0);
         $maxArgCount += ($data['max_arg'] ?? 0);
     }
-    if (in_array($commandName, ['DEL', 'MGET', 'MSET'])) {
+    if (in_array($commandName, ['DEL', 'MGET', 'MSET', 'TOUCH', 'UNLINK'])) {
         return "keyn";
     }
     if ($maxKeyCount > $minKeyCount || $maxArgCount > $minArgCount) {
@@ -92,6 +92,7 @@ const KEY1_ARG1 = [
     'EXPIREAT',
     'PEXPIRE',
     'PEXPIREAT',
+    'MOVE',
 
     'APPEND',
     'DECRBY',
@@ -141,6 +142,11 @@ const KEY1_ARG2 = [
     'ZREMRANGEBYSCORE',
 ];
 
+const KEY1_ARG3 = [
+    'LINSERT',
+    'LMOVE',
+];
+
 const KEY1_ARGN = [
     'SORT',
 
@@ -186,20 +192,25 @@ const KEY1_ARGN = [
     'PFCOUNT',
 
     'ZADD',
+    'ZDIFF',
+    'ZDIFFSTORE',
+    'ZINTER',
     'ZINTERSTORE',
+    'ZMSCORE',
+    'ZPOPMAX',
+    'ZPOPMIN',
+    'ZRANDMEMBER',
     'ZRANGE',
+    'ZRANGEBYLEX',
     'ZRANGEBYSCORE',
+    'ZRANGESTORE',
     'ZREM',
     'ZREVRANGE',
-    'ZRANGEBYLEX',
     'ZREVRANGEBYLEX',
     'ZREVRANGEBYSCORE',
-    'ZUNIONSTORE',
     'ZSCAN',
-    'ZMSCORE',
-    'ZPOPMIN',
-    'ZPOPMAX',
-    'ZRANDMEMBER',
+    'ZUNION',
+    'ZUNIONSTORE',
 
     'GEODIST',
     'GEOPOS',
@@ -214,7 +225,7 @@ const EXPECTED_MAPS = [
     'key1_arg0' => KEY1,
     'key1_arg1' => KEY1_ARG1,
     'key1_arg2' => KEY1_ARG2,
-    'key1_arg3' => ['LINSERT'],
+    'key1_arg3' => KEY1_ARG3,
     'key1_argx' => KEY1_ARGN,
 ];
 
@@ -238,7 +249,9 @@ foreach (EXPECTED_MAPS as $expected => $maps) {
     }
     foreach ($types as $other_name => $type) {
         if ($type === $expected && !in_array($other_name, $maps)) {
-            echo "Expected $other_name in $expected: " . json_encode($commands[$other_name]['arguments']) . "\n";
+            $command = $commands[$other_name];
+            echo "Expected $other_name in $expected: " . json_encode($command['arguments']) . "\n";
+            echo "> " . $command['group'] . ": " . $command['summary'] . "\n\n";
         }
     }
 }
