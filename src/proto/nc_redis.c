@@ -163,7 +163,9 @@ redis_arg2(struct msg *r)
     case MSG_REQ_REDIS_LTRIM:
 
     case MSG_REQ_REDIS_SMOVE:
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
     case MSG_REQ_REDIS_BRPOPLPUSH:
+#endif
 
     case MSG_REQ_REDIS_ZCOUNT:
     case MSG_REQ_REDIS_ZLEXCOUNT:
@@ -226,8 +228,10 @@ redis_argn(struct msg *r)
     case MSG_REQ_REDIS_HSET:
     case MSG_REQ_REDIS_HRANDFIELD:
 
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
     case MSG_REQ_REDIS_BLPOP:
     case MSG_REQ_REDIS_BRPOP:
+#endif
     case MSG_REQ_REDIS_LPUSH:
     case MSG_REQ_REDIS_LPUSHX:
     case MSG_REQ_REDIS_RPUSH:
@@ -253,8 +257,10 @@ redis_argn(struct msg *r)
     case MSG_REQ_REDIS_PFMERGE:
     case MSG_REQ_REDIS_PFCOUNT:
 
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
     case MSG_REQ_REDIS_BZPOPMAX:
     case MSG_REQ_REDIS_BZPOPMIN:
+#endif
 
     case MSG_REQ_REDIS_ZADD:
     case MSG_REQ_REDIS_ZDIFF:
@@ -847,6 +853,7 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
                 if (str5icmp(m, 'b', 'l', 'p', 'o', 'p')) {
                     r->type = MSG_REQ_REDIS_BLPOP;
                     break;
@@ -856,6 +863,7 @@ redis_parse_req(struct msg *r)
                     r->type = MSG_REQ_REDIS_BRPOP;
                     break;
                 }
+#endif
 
                 break;
 
@@ -1121,6 +1129,7 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
                 if (str8icmp(m, 'b', 'z', 'p', 'o', 'p', 'm', 'i', 'n')) {
                     r->type = MSG_REQ_REDIS_BZPOPMIN;
                     break;
@@ -1130,6 +1139,7 @@ redis_parse_req(struct msg *r)
                     r->type = MSG_REQ_REDIS_BZPOPMAX;
                     break;
                 }
+#endif
 
                 break;
 
@@ -1192,10 +1202,12 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
                 if (str10icmp(m, 'b', 'r', 'p', 'o', 'p', 'l', 'p', 'u', 's', 'h')) {
                     r->type = MSG_REQ_REDIS_BRPOPLPUSH;
                     break;
                 }
+#endif
 
                 break;
 

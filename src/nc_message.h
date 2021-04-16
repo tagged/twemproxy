@@ -34,7 +34,7 @@ typedef enum msg_parse_result {
     MSG_PARSE_AGAIN,                      /* incomplete -> parse again */
 } msg_parse_result_t;
 
-#define MSG_TYPE_CODEC(ACTION)                                                                      \
+#define MSG_TYPE_BASE_CODEC(ACTION)                                                                      \
     ACTION( UNKNOWN )                                                                               \
     ACTION( REQ_MC_GET )                       /* memcache retrieval requests */                    \
     ACTION( REQ_MC_GETS )                                                                           \
@@ -118,9 +118,6 @@ typedef enum msg_parse_result {
     ACTION( REQ_REDIS_HSCAN)                                                                        \
     ACTION( REQ_REDIS_HSTRLEN)                                                                      \
     ACTION( REQ_REDIS_HVALS )                                                                       \
-    ACTION( REQ_REDIS_BLPOP )                 /* redis requests - lists (blocking) */               \
-    ACTION( REQ_REDIS_BRPOP )                                                                       \
-    ACTION( REQ_REDIS_BRPOPLPUSH )                                                                  \
     ACTION( REQ_REDIS_LINDEX )                 /* redis requests - lists */                         \
     ACTION( REQ_REDIS_LINSERT )                                                                     \
     ACTION( REQ_REDIS_LLEN )                                                                        \
@@ -156,8 +153,6 @@ typedef enum msg_parse_result {
     ACTION( REQ_REDIS_SUNION )                                                                      \
     ACTION( REQ_REDIS_SUNIONSTORE )                                                                 \
     ACTION( REQ_REDIS_SSCAN)                                                                        \
-    ACTION( REQ_REDIS_BZPOPMIN )               /* redis requests - sorted sets (blocking) */        \
-    ACTION( REQ_REDIS_BZPOPMAX )                                                                    \
     ACTION( REQ_REDIS_ZADD )                   /* redis requests - sorted sets */                   \
     ACTION( REQ_REDIS_ZCARD )                                                                       \
     ACTION( REQ_REDIS_ZCOUNT )                                                                      \
@@ -222,6 +217,31 @@ typedef enum msg_parse_result {
     ACTION( RSP_REDIS_MULTIBULK )                                                                   \
     ACTION( SENTINEL )                                                                              \
 
+/**
+ * Note that SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE is disabled by default,
+ * and would have to be manually enabled with CFLAGS='-DSUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE=1'
+ *
+ * It's way too easy to cause severe and unpredictable performance degradation for other clients
+ * if an application unexpectedly starts uses blocking redis commands,
+ * and it'd be much easier to not support this command to begin with.
+ * (twemproxy uses pipelining, so the blocking command would block other requests, possibly indefinitely).
+ *
+ * Additionally, the configured timeout may be hit if the command timeout is less than the twemproxy timeout.
+ */
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
+
+#define MSG_TYPE_CODEC(action) MSG_TYPE_BASE_CODEC(action)                                          \
+    ACTION( REQ_REDIS_BZPOPMIN )               /* redis requests - sorted sets (blocking) */        \
+    ACTION( REQ_REDIS_BZPOPMAX )                                                                    \
+    ACTION( REQ_REDIS_BLPOP )                 /* redis requests - lists (blocking) */               \
+    ACTION( REQ_REDIS_BRPOP )                                                                       \
+    ACTION( REQ_REDIS_BRPOPLPUSH )                                                                  \
+
+#else
+
+#define MSG_TYPE_CODEC(action) MSG_TYPE_BASE_CODEC(action)
+
+#endif
 
 #define DEFINE_ACTION(_name) MSG_##_name,
 typedef enum msg_type {
