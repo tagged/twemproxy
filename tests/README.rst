@@ -7,10 +7,10 @@ see https://github.com/idning/twemproxy/blob/travis-ci/travis.sh
 usage
 =====
 
-1. install dependency (redis-py must be 2.10 or newer)::
+1. install dependency (redis-py must be 3.0 or newer)::
 
     pip install nose
-    pip install git+https://github.com/andymccurdy/redis-py.git@2.10.6
+    pip install git+https://github.com/andymccurdy/redis-py.git@3.5.3
     pip install git+https://github.com/linsomniac/python-memcached.git#egg=memcache
 
 2. copy binaries to _binaries/::
