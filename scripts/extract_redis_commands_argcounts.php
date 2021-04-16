@@ -229,29 +229,124 @@ const EXPECTED_MAPS = [
     'key1_argx' => KEY1_ARGN,
 ];
 
-$types = [];
-foreach ($commands as $name => $cmd) {
-    // printf("%s: %s\n", $name, json_encode($cmd, JSON_PRETTY_PRINT));
-    try {
-        $type = categorize($cmd, $name);
-    } catch (Exception $e) {
-        $type = "unknown: {$e->getMessage()} " . json_encode($cmd);
+function compute_types(): array {
+    global $commands;
+    $types = [];
+    foreach ($commands as $name => $cmd) {
+        // printf("%s: %s\n", $name, json_encode($cmd, JSON_PRETTY_PRINT));
+        try {
+            $type = categorize($cmd, $name);
+        } catch (Exception $e) {
+            $type = "unknown: {$e->getMessage()} " . json_encode($cmd);
+        }
+        $types[$name] = $type;
     }
+    return $types;
+}
+
+function dump_mismatched_argument_types(array $types, array $commands): void {
+    foreach (EXPECTED_MAPS as $expected => $maps) {
+        foreach ($maps as $key) {
+            $actual = $types[$key];
+            if ($actual !== $expected) {
+                echo "Unexpected type for $key: got $actual, want $expected: " . json_encode($commands[$key]['arguments']) . "\n";
+            }
+        }
+        foreach ($types as $other_name => $type) {
+            if ($type === $expected && !in_array($other_name, $maps)) {
+                $command = $commands[$other_name];
+                echo "Expected $other_name in $expected: " . json_encode($command['arguments']) . "\n";
+                echo "> " . $command['group'] . ": " . $command['summary'] . "\n\n";
+            }
+        }
+    }
+}
+
+function render_arg(array $argument): string {
+    if ($argument['optional'] ?? false) {
+        unset($argument['optional']);
+        return '[' . render_arg($argument) . ']';
+    }
+    if ($argument['enum'] ?? null) {
+        return implode('|', $argument['enum']);
+    }
+    if ($argument['command'] ?? null) {
+        return $argument['command'];
+    }
+    $name = $argument['name'];
+
+    $repr = is_array($name) ? implode(' ', $name) : $name;
+    if ($argument['multiple'] ?? false) {
+        return "$repr [$repr …]";
+    }
+    return $repr;
+}
+
+function render_command(string $name, array $command): string {
+    $repr = $name;
+    foreach ($command['arguments'] ?? [] as $argument) {
+        $repr .= ' ' . render_arg($argument);
+    }
+    return $repr;
+}
+
+function center_pad(string $name, int $len) {
+    if (mb_strlen($name) >= $len) {
+        return $name;
+    }
+    $name = str_repeat(' ', ($len - mb_strlen($name)) >> 1) . $name;
+    $name .= str_repeat(' ', $len - mb_strlen($name));
+    return $name;
+}
+
+function right_pad(string $name, int $len) {
+    if (mb_strlen($name) >= $len) {
+        return $name;
+    }
+    $name .= str_repeat(' ', $len - mb_strlen($name));
+    return $name;
+}
+
+function dump_table(array $commands) {
+    $header = <<<EOT
+    +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
+    |      Command      | Supported? | Format                                                                                                              |
+    +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
+EOT;
+    echo $header . "\n";
+    $rowLine = explode("\n", $header)[0];
+    ksort($commands);
+    $parts = explode('+', $rowLine);
+    $nameLen = strlen($parts[1]);
+    $supportsLen = strlen($parts[2]);
+    $commandLen = strlen($parts[3]);
+    foreach ($commands as $name => $command) {
+        $key = center_pad($name, 19);
+        $commandRepr = render_command($name, $command);
+        $supports = 'Yes';
+        printf("    |%s|%s|%s|\n", center_pad($name, $nameLen), center_pad($supports, $supportsLen), right_pad(' ' . $commandRepr, $commandLen));
+        echo $rowLine . "\n";
+
+    }
+    echo "\n";
+}
+
+function dump_table_groups(array $commands): void {
+    $groups = [];
+    foreach ($commands as $name => $command) {
+        $groups[$command['group']][$name] = $command;
+    }
+    foreach ($groups as $groupName => $group) {
+        printf("### %s Command\n\n", $groupName);
+
+        dump_table($group);
+    }
+}
+
+$types = compute_types();
+foreach ($types as $name => $type) {
     printf("%s: %s\n", $name, $type);
-    $types[$name] = $type;
 }
-foreach (EXPECTED_MAPS as $expected => $maps) {
-    foreach ($maps as $key) {
-        $actual = $types[$key];
-        if ($actual !== $expected) {
-            echo "Unexpected type for $key: got $actual, want $expected: " . json_encode($commands[$key]['arguments']) . "\n";
-        }
-    }
-    foreach ($types as $other_name => $type) {
-        if ($type === $expected && !in_array($other_name, $maps)) {
-            $command = $commands[$other_name];
-            echo "Expected $other_name in $expected: " . json_encode($command['arguments']) . "\n";
-            echo "> " . $command['group'] . ": " . $command['summary'] . "\n\n";
-        }
-    }
-}
+
+dump_mismatched_argument_types($types, $commands);
+dump_table_groups($commands);

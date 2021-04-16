@@ -222,7 +222,7 @@
     +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
     |      Command      | Supported? | Format                                                                                                              |
     +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
-    |      ZADD         |    Yes     | ZADD key score member [score] [member]                                                                              |
+    |      ZADD         |    Yes     | ZADD key [NX|XX] [GT|LT] [CH] [INCR] score member [score member ...]                                                |
     +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
     |      ZCARD        |    Yes     | ZCARD key                                                                                                           |
     +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
@@ -399,7 +399,7 @@
 ## Note
 
 - redis commands are not case sensitive
-- only vectored commands 'MGET key [key ...]', 'MSET key value [key value ...]', 'DEL key [key ...]' needs to be fragmented
+- only vectored commands 'MGET key [key ...]', 'MSET key value [key value ...]', 'DEL key [key ...]', 'UNLINK key [key ...]', 'EXISTS key [key ...]'  needs to be fragmented
 
 ## Performance
 
@@ -482,6 +482,4 @@
 
 + notice:
     + You should configure all the sentinels you used. Twemproxy will connect to the alive sentinels when some are down
-    + Weight of sentinel is not used. Twemproxy keep it because of server load code reuse
-
-
+    + Weight of sentinel is not used. Twemproxy keeps it because of the server load code reuse
