@@ -38,6 +38,12 @@ A quick checklist:
 + Use CFLAGS="-O3 -fno-strict-aliasing" ./configure && make
 + `autoreconf -fvi && ./configure` needs `automake` and `libtool` to be installed
 
+## Testing
+
+See [tests/README.rst](tests/README.rst) for the more extensive integration tests written in python and nosetests.
+
+If you want to unit test a C function, see the unit tests in the `src` folder. A tiny number of test cases exist that can be run with `make check` (`test_all.c`).
+
 ## Features
 
 + Fast.

@@ -1,6 +1,10 @@
 # pyc
 *.pyc
 
+# Unit tests
+src/test_all
+*.trs
+
 # Compiled Object files
 *.lo
 *.o
