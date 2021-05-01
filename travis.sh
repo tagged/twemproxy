@@ -31,10 +31,10 @@ docker build -f ci/Dockerfile \
    .
 
 # Run nose tests
-# TODO: test_system for reloading nutcracker config is failing
+# NOTE: It was never possible to reload nutcracker configs (in any nutcracker version so far) with SIGUSR1 so test_system.test_reload has always been skipped.
 docker run \
    --rm \
    -e REDIS_VER=$REDIS_VER \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   nosetests -v test_memcache
+   nosetests -v test_redis test_memcache test_system.test_sentinel
