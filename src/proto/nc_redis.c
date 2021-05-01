@@ -363,6 +363,20 @@ redis_argeval(struct msg *r)
     return false;
 }
 
+static bool
+redis_nokey(struct msg *r)
+{
+    switch (r->type) {
+    case MSG_REQ_REDIS_LOLWUT:
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
 /*
  * Return true, if the redis response is an error response i.e. a simple
  * string whose first character is '-', otherwise return false.
@@ -392,6 +406,21 @@ redis_error(struct msg *r)
     }
 
     return false;
+}
+
+// Set a placeholder key for a command with no key that is forwarded to an arbitrary backend.
+static bool
+set_placeholder_key(struct msg *r)
+{
+    struct keypos *kpos;
+    ASSERT(array_n(r->keys) == 0);
+    kpos = array_push(r->keys);
+    if (kpos == NULL) {
+        return false;
+    }
+    kpos->start = (uint8_t *)"placeholder";
+    kpos->end = kpos->start + sizeof("placeholder") - 1;
+    return true;
 }
 
 /*
@@ -1004,6 +1033,14 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str6icmp(m, 'l', 'o', 'l', 'w', 'u', 't')) {
+                    r->type = MSG_REQ_REDIS_LOLWUT;
+                    if (!set_placeholder_key(r)) {
+                        goto enomem;
+                    }
+                    break;
+                }
+
                 break;
 
             case 7:
@@ -1093,14 +1130,10 @@ redis_parse_req(struct msg *r)
                 }
 
                 if (str7icmp(m, 'c', 'o', 'm', 'm', 'a', 'n', 'd')) {
-                    struct keypos *kpos;
                     r->type = MSG_REQ_REDIS_COMMAND;
-                    kpos = array_push(r->keys);
-                    if (kpos == NULL) {
+                    if (!set_placeholder_key(r)) {
                         goto enomem;
                     }
-                    kpos->start = "placeholder";
-                    kpos->end = sizeof("placeholder") - 1;
                     break;
                 }
 
@@ -1352,6 +1385,11 @@ redis_parse_req(struct msg *r)
             case LF:
                 if (redis_argz(r)) {
                     goto done;
+                } else if (redis_nokey(r)) {
+                    if (r->narg == 1) {
+                        goto done;
+                    }
+                    state = SW_ARGN_LEN;
                 } else if (r->narg == 1) {
                     goto error;
                 } else if (redis_argeval(r)) {
@@ -1856,7 +1894,7 @@ redis_parse_req(struct msg *r)
         case SW_ARGN_LF:
             switch (ch) {
             case LF:
-                if (redis_argn(r) || redis_argeval(r)) {
+                if (redis_argn(r) || redis_argeval(r) || redis_nokey(r)) {
                     if (r->rnarg == 0) {
                         goto done;
                     }

@@ -80,9 +80,6 @@ req_log(struct msg *req)
     }
 
     kpos = array_get(req->keys, 0);
-    if (kpos->end != NULL) {
-        *(kpos->end) = '\0';
-    }
 
     /*
      * FIXME: add backend addr here
@@ -95,10 +92,10 @@ req_log(struct msg *req)
 
     log_debug(LOG_INFO, "req %"PRIu64" done on c %d req_time %"PRIi64".%03"PRIi64
               " msec type %.*s narg %"PRIu32" req_len %"PRIu32" rsp_len %"PRIu32
-              " key0 '%s' peer '%s' done %d error %d",
+              " key0 '%.*s' peer '%s' done %d error %d",
               req->id, req->owner->sd, req_time / 1000, req_time % 1000,
               req_type->len, req_type->data, req->narg, req_len, rsp_len,
-              kpos->start, peer_str, req->done, req->error);
+              kpos->end ? kpos->end - kpos->start : 0, kpos->start, peer_str, req->done, req->error);
 }
 
 void

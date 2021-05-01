@@ -200,6 +200,7 @@ typedef enum msg_parse_result {
     ACTION( REQ_REDIS_AUTH)                                                                         \
     ACTION( REQ_REDIS_SELECT)                  /* only during init */                               \
     ACTION( REQ_REDIS_COMMAND)                 /* Sent to random server for redis-cli completions*/ \
+    ACTION( REQ_REDIS_LOLWUT)                  /* Vitally important */                              \
     ACTION( RSP_REDIS_STATUS )                 /* redis response */                                 \
     ACTION( RSP_REDIS_ERROR )                                                                       \
     ACTION( RSP_REDIS_ERROR_ERR )                                                                   \
