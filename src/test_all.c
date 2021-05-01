@@ -89,7 +89,6 @@ static void test_redis_parse_rsp_success(void) {
     test_redis_parse_rsp_success_case("*-1\r\n");  // null array for BLPOP
     // TODO: Support parsing arrays of arrays. They can be returned by COMMAND, EVAL, etc.
     // One way to do this would be by keeping a linked list of previous multi-bulk replies in the msg structure
-    /*
     test_redis_parse_rsp_success_case("*2\r\n"
             "*3\r\n"
             ":1\r\n"
@@ -98,7 +97,6 @@ static void test_redis_parse_rsp_success(void) {
             "*2\r\n"
             "+Foo\r\n"
             "-Bar\r\n");  // array of 2 arrays
-    */
 }
 
 int main(int argc, char **argv) {
