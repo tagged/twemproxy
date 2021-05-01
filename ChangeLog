@@ -18,6 +18,8 @@
 	  into an array of commands to coalesce. (tyson)
 	  Support new redis commands and changes to argument counts of existing
 	  commands (tyson)
+	  Support nested multi-bulk redis commands (arrays of arrays...) up to a
+	  depth of 4. (qingping209)
 
 2016-04-27  Misha Nasledov <misha@nasledov.com>
     * twemproxy: version 0.5.1 release
