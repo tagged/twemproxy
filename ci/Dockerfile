@@ -5,6 +5,10 @@ FROM centos:7
 
 ENV LAST_MODIFIED_DATE 2021-04-09
 
+RUN yum install -y \
+        https://repo.ius.io/ius-release-el7.rpm \
+        https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
 # socat Allow tests to open log files
 # which (used below)
 # python-setuptools for pip
@@ -14,7 +18,7 @@ RUN yum install -y \
         memcached \
         socat \
         which \
-        python-setuptools && \
+        python36u python36u-pip && \
     yum clean all
 
 # Install nosetest dependencies
