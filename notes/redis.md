@@ -460,6 +460,17 @@
     +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
     |      TIME         |    No      | TIME                                                                                                                |
     +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
+    |     COMMAND       |    Yes     | COMMAND                                                                                                     |
+    +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
+    |     LOLWUT        |    Yes     | LOLWUT [ argument ...]                                                                                              |
+    +-------------------+------------+---------------------------------------------------------------------------------------------------------------------+
+
+* COMMAND is forwarded to an arbitrarily chosen redis backend for the benefit of tools such as `redis-cli`.
+  It assumes that all proxied redis servers support the same backend.
+  There is no post-processing; Commands that are not supported by twemproxy are not filtered out.
+* LOLWUT is also forwarded to an arbitrarily chosen redis backend because it does not depend on the state of the database and the presence of the command would not affect production applications.
+  It can be used as a reference for adding future commands with no keys and a variable-length argument list.
+  Other commands such as `TIME` continue to be unsupported. They may vary based on state of the database (e.g. out of sync clocks). Using EVAL with a key known to be on the specific backend server can be done instead.
 
 ## Note
 
