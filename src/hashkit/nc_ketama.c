@@ -100,7 +100,7 @@ ketama_update(struct server_pool *pool)
         ASSERT(server->weight > 0);
 
         /* count weight only for live servers */
-        if (!pool->auto_eject_hosts || server->fail == 0) {
+        if (!pool->auto_eject_hosts || server->fail == FAIL_STATUS_NORMAL) {
             total_weight += server->weight;
         }
     }
@@ -150,7 +150,7 @@ ketama_update(struct server_pool *pool)
 
         server = array_get(&pool->server, server_index);
 
-        if (pool->auto_eject_hosts && server->next_retry > now) {
+        if (pool->auto_eject_hosts && server->fail != FAIL_STATUS_NORMAL) {
             continue;
         }
 
@@ -190,6 +190,8 @@ ketama_update(struct server_pool *pool)
         pointer_counter += pointer_per_server;
     }
 
+    /* The continuum should have only been regenerated if there was at least one live server */
+    ASSERT(pointer_counter > 0);
     pool->ncontinuum = pointer_counter;
     qsort(pool->continuum, pool->ncontinuum, sizeof(*pool->continuum),
           ketama_item_cmp);

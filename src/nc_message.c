@@ -190,6 +190,7 @@ msg_tmo_delete(struct msg *msg)
     log_debug(LOG_VERB, "delete msg %"PRIu64" from tmo rbt", msg->id);
 }
 
+/* Allocates a new message or returns one from the pool to avoid allocations. Always zeroes out important fields. */
 static struct msg *
 _msg_get(void)
 {
@@ -273,6 +274,7 @@ done:
     return msg;
 }
 
+/* Get a message datastructure from the message pool and set its properties/callbacks */
 struct msg *
 msg_get(struct conn *conn, bool request, bool redis)
 {

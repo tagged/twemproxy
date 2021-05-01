@@ -1,11 +1,15 @@
-Dockerfile*
-**/Dockerfile*
+*.rpm
+*.o
+tags
+Dockerfile.*
+ci/main.sh
+# Don't copy over binaries
+tests/_binaries/
+
 *.gz
 src/nutredis
 src/nutcracker
-tests/_binaries/*
 
-### Entries copied from .gitignore
 # pyc
 *.pyc
 
@@ -55,3 +59,22 @@ nutcracker
 /stamp-h1
 /autoscan.log
 /libtool
+
+/config/config.guess
+/config/config.sub
+/config/depcomp
+/config/install-sh
+/config/ltmain.sh
+/config/missing
+/config
+
+/config.h
+/config.h.in
+/config.h.in~
+/config.log
+/config.status
+/configure.scan
+/configure
+
+Makefile
+Makefile.in

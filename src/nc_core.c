@@ -38,10 +38,11 @@ static void
 core_failed_servers_deinit(struct context *ctx)
 {
     uint32_t i, n, nsize;
-    
+
     for (i = 0; i < 2; i++) {
         nsize = array_n(&(ctx->failed_servers[i]));
         for (n = 0; n < nsize; n++) {
+            /* This is buggy but core_failed_servers_deinit isn't even referenced - failed_servers is 2 arrays */
             array_pop(&(ctx->failed_servers[n]));
         }
         array_deinit(&(ctx->failed_servers[n]));
@@ -262,7 +263,9 @@ core_close(struct context *ctx, struct conn *conn)
         type = conn->proxy ? 'p' : 's';
         addrstr = nc_unresolve_addr(conn->addr, conn->addrlen);
     }
-    log_debug(LOG_NOTICE, "close %c %d '%s' on event %04"PRIX32" eof %d done "
+    // Certain clients (e.g. PHP) frequently open and close connections by nature.
+    // Log at a lower severity.
+    log_debug(LOG_INFO, "close %c %d '%s' on event %04"PRIX32" eof %d done "
               "%d rb %zu sb %zu%c %s", type, conn->sd, addrstr, conn->events,
               conn->eof, conn->done, conn->recv_bytes, conn->send_bytes,
               conn->err ? ':' : ' ', conn->err ? strerror(conn->err) : "");
@@ -292,6 +295,7 @@ core_error(struct context *ctx, struct conn *conn)
     core_close(ctx, conn);
 }
 
+/* Try to re-establish any failed connections to servers once the retry timeout has elapsed for a server. */
 static void
 retry_connection(struct context *ctx)
 {
@@ -302,6 +306,7 @@ retry_connection(struct context *ctx)
     uint32_t i, nsize;
     rstatus_t status;
 
+    /* Alternate between two lists of failed servers (to only retry a given server once here?) */
     servers = ctx->fails;
     idx = (ctx->failed_idx == 0) ? 1 : 0;
 

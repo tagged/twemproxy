@@ -294,7 +294,7 @@ proxy_accept(struct context *ctx, struct conn *p)
                 return NC_OK;
             }
 
-            /* 
+            /*
              * Workaround of https://github.com/twitter/twemproxy/issues/97
              *
              * We should never reach here because the check for conn_ncurr_cconn()
@@ -382,7 +382,8 @@ proxy_accept(struct context *ctx, struct conn *p)
         return status;
     }
 
-    log_debug(LOG_NOTICE, "accepted c %d on p %d from '%s'", c->sd, p->sd,
+    // Some clients (e.g. php) frequently open and close connections.
+    log_debug(LOG_INFO, "accepted c %d on p %d from '%s'", c->sd, p->sd,
               nc_unresolve_peer_desc(c->sd));
 
     return NC_OK;

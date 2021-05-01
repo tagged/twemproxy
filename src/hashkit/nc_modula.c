@@ -112,7 +112,7 @@ modula_update(struct server_pool *pool)
     for (server_index = 0; server_index < nserver; server_index++) {
         struct server *server = array_get(&pool->server, server_index);
 
-        if (pool->auto_eject_hosts && server->next_retry > now) {
+        if (pool->auto_eject_hosts && server->fail != FAIL_STATUS_NORMAL) {
             continue;
         }
 

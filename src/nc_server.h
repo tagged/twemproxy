@@ -59,8 +59,9 @@
  *            //
  */
 
-#define NC_PNAME_MAXLEN                 32
+#define NC_PNAME_MAXLEN 32 /* Length of an IP address:port:weight */
 
+/* See notes/heartbeat.md */
 #define     FAIL_STATUS_NORMAL              0
 #define     FAIL_STATUS_ERR_TRY_CONNECT     1
 #define     FAIL_STATUS_ERR_TRY_HEARTBEAT   2
@@ -92,6 +93,7 @@ struct server {
     int64_t            next_retry;    /* next retry time in usec */
     uint32_t           failure_count; /* # consecutive failures */
     uint32_t           fail;
+
     unsigned           sentinel:1;    /* redis sentinel? */
 };
 

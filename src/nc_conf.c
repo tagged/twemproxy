@@ -110,13 +110,13 @@ static struct command conf_commands[] = {
       conf_add_server,
       offsetof(struct conf_pool, server) },
 
-    { string("sentinels"),
-      conf_add_server,
-      offsetof(struct conf_pool, sentinel) },
-
     { string("failover"),
       conf_set_string,
       offsetof(struct conf_pool, failover_name) },
+
+    { string("sentinels"),
+      conf_add_server,
+      offsetof(struct conf_pool, sentinel) },
 
     null_command
 };
@@ -331,15 +331,18 @@ conf_pool_each_transform(void *elem, void *data)
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
 
+    sp->failover_name = cp->failover_name;
+    sp->failover = NULL;
+
     status = server_init(&sp->server, &cp->server, sp, false);
     if (status != NC_OK) {
         return status;
     }
 
     status = server_init(&sp->sentinel, &cp->sentinel, sp, true);
-
-    sp->failover_name = cp->failover_name;
-    sp->failover = NULL;
+    if (status != NC_OK) {
+        return status;
+    }
 
     log_debug(LOG_VERB, "transform to pool %"PRIu32" '%.*s'", sp->idx,
               sp->name.len, sp->name.data);
@@ -1725,6 +1728,7 @@ conf_set_listen(struct conf *cf, struct command *cmd, void *conf)
             /* no permissions field, so use defaults */
             name = value->data;
             namelen = value->len;
+            field->perm = (mode_t)0;
         } else {
             perm = q + 1;
             permlen = (uint32_t)(p - perm + 1);

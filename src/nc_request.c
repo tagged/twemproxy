@@ -42,7 +42,7 @@ req_log(struct msg *req)
     struct string *req_type;   /* request type string */
     struct keypos *kpos;
 
-    if (log_loggable(LOG_NOTICE) == 0) {
+    if (log_loggable(LOG_INFO) == 0) {
         return;
     }
 
@@ -93,7 +93,7 @@ req_log(struct msg *req)
 
     req_type = msg_type_string(req->type);
 
-    log_debug(LOG_NOTICE, "req %"PRIu64" done on c %d req_time %"PRIi64".%03"PRIi64
+    log_debug(LOG_INFO, "req %"PRIu64" done on c %d req_time %"PRIi64".%03"PRIi64
               " msec type %.*s narg %"PRIu32" req_len %"PRIu32" rsp_len %"PRIu32
               " key0 '%s' peer '%s' done %d error %d",
               req->id, req->owner->sd, req_time / 1000, req_time % 1000,
@@ -616,6 +616,12 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 
     s_conn = server_pool_conn(ctx, c_conn->owner, key, keylen);
     if (s_conn == NULL) {
+        /* Handle a failure to establish a new connection to a server, e.g. due to dns resolution errors. */
+        /* If this is a fragmented request sent to multiple servers such as a memcache get(multiget) mark the fragment for this request to the server as done. */
+        /* Normally, this would be done when the request was forwarded to the server, but due to failing to connect to the server this check is repeated here */
+        if (msg->frag_owner != NULL) {
+            msg->frag_owner->nfrag_done++;
+        }
         req_forward_error(ctx, c_conn, msg);
         return;
     }
@@ -649,6 +655,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
               msg->mlen, msg->type, keylen, key);
 }
 
+/* Handle a full redis/memcache request */
 void
 req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
               struct msg *nmsg)
@@ -704,11 +711,12 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
         req_forward_error(ctx, conn, msg);
     }
 
-    /* if no fragment happened */
+    /* if no fragment happened, then forward the message to the corresponding backend server without modification. */
     if (TAILQ_EMPTY(&frag_msgq)) {
         req_forward(ctx, conn, msg);
         return;
     }
+    /* Otherwise, send the generated fragments to the corresponding backends */
 
     status = req_make_reply(ctx, conn, msg);
     if (status != NC_OK) {

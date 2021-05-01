@@ -34,6 +34,8 @@ Failures are a fact of life, especially when things are distributed. To be resil
 
 Enabling `auto_eject_hosts:` ensures that a dead server can be ejected out of the hash ring after `server_failure_limit:` consecutive failures have been encountered on that said server. A non-zero `server_retry_timeout:` ensures that we don't incorrectly mark a server as dead forever especially when the failures were really transient. The combination of `server_retry_timeout:` and `server_failure_limit:` controls the tradeoff between resiliency to permanent and transient failures.
 
+- **NOTE: The heartbeat patch changes this behavior from the upstream for pools configured with `auto_eject_hosts: true`.** See [heartbeat.md](./heartbeat.md)
+
 Note that an ejected server will not be included in the hash ring for any requests until the retry timeout passes. This will lead to data partitioning as keys originally on the ejected server will now be written to a server still in the pool.
 
 To ensure that requests always succeed in the face of server ejections (`auto_eject_hosts:` is enabled), some form of retry must be implemented at the client layer since nutcracker itself does not retry a request. This client-side retry count must be greater than `server_failure_limit:` value, which ensures that the original request has a chance to make it to a live server.
@@ -151,7 +153,7 @@ You can also graph the timestamp at which any given server was ejected by graphi
 
 ## server_connections: > 1
 
-By design, twemproxy multiplexes several client connections over few server connections. It is important to note that **"read my last write"** constraint doesn't necessarily hold true when twemproxy is configured with `server_connections: > 1`. 
+By design, twemproxy multiplexes several client connections over few server connections. It is important to note that **"read my last write"** constraint doesn't necessarily hold true when twemproxy is configured with `server_connections: > 1`.
 
 To illustrate this, consider a scenario where twemproxy is configured with `server_connections: 2`. If a client makes pipelined requests with the first request in pipeline being `set foo 0 0 3\r\nbar\r\n` (write) and the second request being `get foo\r\n` (read), the expectation is that the read of key `foo` would return the value `bar`. However, with configuration of two server connections it is possible that write and read request are sent on different server connections which would mean that their completion could race with one another. In summary, if the client expects "read my last write" constraint, you either configure twemproxy to use `server_connections:1` or use clients that only make synchronous requests to twemproxy.
 

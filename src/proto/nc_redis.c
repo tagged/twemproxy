@@ -2543,6 +2543,7 @@ static rstatus_t
 redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
                     uint32_t key_step)
 {
+    /* TODO: copy the failover pool check from nc_memcache.c memcache_fragment_retrieval, or just forbid failover for redis entirely because it has a native sentinel protocol for proper failover. */
     struct mbuf *mbuf;
     struct msg **sub_msgs;
     uint32_t i;
