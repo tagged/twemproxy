@@ -45,6 +45,7 @@ redis_argz(struct msg *r)
     switch (r->type) {
     case MSG_REQ_REDIS_PING:
     case MSG_REQ_REDIS_QUIT:
+    case MSG_REQ_REDIS_COMMAND:
         return true;
 
     default:
@@ -1088,6 +1089,18 @@ redis_parse_req(struct msg *r)
 
                 if (str7icmp(m, 'h', 's', 't', 'r', 'l', 'e', 'n')) {
                     r->type = MSG_REQ_REDIS_HSTRLEN;
+                    break;
+                }
+
+                if (str7icmp(m, 'c', 'o', 'm', 'm', 'a', 'n', 'd')) {
+                    struct keypos *kpos;
+                    r->type = MSG_REQ_REDIS_COMMAND;
+                    kpos = array_push(r->keys);
+                    if (kpos == NULL) {
+                        goto enomem;
+                    }
+                    kpos->start = "placeholder";
+                    kpos->end = sizeof("placeholder") - 1;
                     break;
                 }
 
