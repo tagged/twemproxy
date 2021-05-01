@@ -321,6 +321,7 @@ struct msg {
     unsigned             fdone:1;         /* all fragments are done? */
     unsigned             swallow:1;       /* swallow response? */
     unsigned             redis:1;         /* redis? */
+    unsigned             heartbeat:1;     /* heartbeat? */
 };
 
 TAILQ_HEAD(msg_tqh, msg);

@@ -468,14 +468,17 @@ server_close(struct context *ctx, struct conn *conn)
             log_debug(LOG_INFO, "close s %d swallow req %"PRIu64" len %"PRIu32
                       " type %d", conn->sd, msg->id, msg->mlen, msg->type);
             /* Assumes that the server status is always set to FAIL_STATUS_ERR_TRY_HEARTBEAT AFTER the server is closed */
-            if (msg->swallow && ((struct server*)conn->owner)->fail == FAIL_STATUS_ERR_TRY_HEARTBEAT) {
+            if (msg->heartbeat) {
                 c_conn = msg->owner;
                 ASSERT(c_conn->client);
                 ASSERT(!c_conn->proxy);
-                log_debug(LOG_INFO, "closing fake connection %d to %d for heartbeat, req %"PRIu64" len %"PRIu32
-                      " type %d", c_conn->sd, conn->sd, msg->id, msg->mlen, msg->type);
-                c_conn->unref(c_conn);
-                conn_put(c_conn);
+                if (c_conn->owner != NULL) {
+                    // sets c_conn->owner to null as a side effect
+                    log_debug(LOG_INFO, "closing fake connection %d to %d for heartbeat, req %"PRIu64" len %"PRIu32
+                          " type %d", c_conn->sd, conn->sd, msg->id, msg->mlen, msg->type);
+                    c_conn->unref(c_conn);
+                    conn_put(c_conn);
+                }
             }
             req_put(msg);
         } else {
@@ -511,14 +514,16 @@ server_close(struct context *ctx, struct conn *conn)
         if (msg->swallow) {
             log_debug(LOG_INFO, "close s %d swallow req %"PRIu64" len %"PRIu32
                       " type %d", conn->sd, msg->id, msg->mlen, msg->type);
-            if (((struct server*)conn->owner)->fail == FAIL_STATUS_ERR_TRY_HEARTBEAT) {
+            if (msg->heartbeat) {
                 c_conn = msg->owner;
                 ASSERT(c_conn->client);
                 ASSERT(!c_conn->proxy);
-                log_debug(LOG_INFO, "closing fake connection %d to %d for heartbeat, req %"PRIu64" len %"PRIu32
-                      " type %d", c_conn->sd, conn->sd, msg->id, msg->mlen, msg->type);
-                c_conn->unref(c_conn);
-                conn_put(c_conn);
+                if (c_conn->owner != NULL) {
+                    log_debug(LOG_INFO, "closing fake connection %d to %d for heartbeat, req %"PRIu64" len %"PRIu32
+                          " type %d", c_conn->sd, conn->sd, msg->id, msg->mlen, msg->type);
+                    c_conn->unref(c_conn);
+                    conn_put(c_conn);
+                }
             }
             req_put(msg);
         } else {
@@ -1331,6 +1336,7 @@ send_heartbeat(struct context *ctx, struct conn *conn, struct server *server)
 
     /* Heartbeats should not be sent to a client of nutcracker */
     msg->swallow = 1;
+    msg->heartbeat = 1;
     server->fail = FAIL_STATUS_ERR_TRY_HEARTBEAT;
 
     if (TAILQ_EMPTY(&conn->imsg_q)) {
