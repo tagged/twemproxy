@@ -15,7 +15,7 @@ def test_msetnx():
     r = getconn()
 
     # https://redis.io/commands/msetnx
-    # MSETNX not supported when sharded?
+    # MSETNX is not supported because the keys can get sent to different backends, which is not supported.
     normalized_kv = {str(key, encoding='utf-8'): val for key, val in default_kv.items()}
     assert_fail('Socket closed|Connection closed', r.msetnx, normalized_kv)
 

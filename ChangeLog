@@ -16,6 +16,8 @@
 	  nutcracker to LOG_INFO for use cases that can't support persistent connections (tyson)
 	  Micro-optimization: Don't fragment memcache multigets with a single key
 	  into an array of commands to coalesce. (tyson)
+	  Support new redis commands and changes to argument counts of existing
+	  commands (tyson)
 
 2016-04-27  Misha Nasledov <misha@nasledov.com>
     * twemproxy: version 0.5.1 release
