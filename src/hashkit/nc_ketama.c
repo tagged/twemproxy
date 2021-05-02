@@ -87,7 +87,7 @@ ketama_update(struct server_pool *pool)
     total_weight = 0;
     pool->next_rebuild = 0LL;
     for (server_index = 0; server_index < nserver; server_index++) {
-        struct server *server = array_get(&pool->server, server_index);
+        struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
         if (pool->auto_eject_hosts) {
             if (server->fail == FAIL_STATUS_NORMAL) {
@@ -148,7 +148,7 @@ ketama_update(struct server_pool *pool)
         struct server *server;
         float pct;
 
-        server = array_get(&pool->server, server_index);
+        server = array_get_known_type(&pool->server, server_index, struct server);
 
         if (pool->auto_eject_hosts && server->fail != FAIL_STATUS_NORMAL) {
             continue;

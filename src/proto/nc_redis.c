@@ -2885,8 +2885,9 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     struct msg **sub_msgs;
     uint32_t i;
     rstatus_t status;
+    struct array *keys = r->keys;
 
-    ASSERT(array_n(r->keys) == (r->narg - 1) / key_step);
+    ASSERT(array_n(keys) == (r->narg - 1) / key_step);
 
     sub_msgs = nc_zalloc(nservers * sizeof(*sub_msgs));
     if (sub_msgs == NULL) {
@@ -2894,7 +2895,7 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     }
 
     ASSERT(r->frag_seq == NULL);
-    r->frag_seq = nc_alloc(array_n(r->keys) * sizeof(*r->frag_seq));
+    r->frag_seq = nc_alloc(array_n(keys) * sizeof(*r->frag_seq));
     if (r->frag_seq == NULL) {
         nc_free(sub_msgs);
         return NC_ENOMEM;
@@ -2921,9 +2922,9 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     r->frag_owner = r;
 
     /** Build up the key1 key2 ... to be sent to a given server at index idx */
-    for (i = 0; i < array_n(r->keys); i++) {        /* for each key */
+    for (i = 0; i < array_n(keys); i++) {        /* for each key */
         struct msg *sub_msg;
-        struct keypos *kpos = array_get(r->keys, i);
+        struct keypos *kpos = array_get_known_type(keys, i, struct keypos);
         uint32_t idx = msg_backend_idx(r, kpos->start, kpos->end - kpos->start);
         ASSERT(idx < nservers);
 

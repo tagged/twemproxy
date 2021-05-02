@@ -366,7 +366,7 @@ conf_dump(struct conf *cf)
               cf->fname);
 
     for (i = 0; i < npool; i++) {
-        cp = array_get(&cf->pool, i);
+        cp = array_get_known_type(&cf->pool, i, struct conf_pool);
 
         log_debug(LOG_VVERB, "%.*s", cp->name.len, cp->name.data);
         log_debug(LOG_VVERB, "  listen: %.*s",
@@ -398,7 +398,7 @@ conf_dump(struct conf *cf)
         log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
 
         for (j = 0; j < nserver; j++) {
-            s = array_get(&cp->server, j);
+            s = array_get_known_type(&cp->server, j, struct string);
             log_debug(LOG_VVERB, "    %.*s", s->len, s->data);
         }
 
@@ -407,7 +407,7 @@ conf_dump(struct conf *cf)
             log_debug(LOG_VVERB, "  sentinels: %"PRIu32"", nserver);
 
             for (j = 0; j < nserver; j++) {
-                s = array_get(&cp->sentinel, j);
+                s = array_get_known_type(&cp->sentinel, j, struct string);
                 log_debug(LOG_VVERB, "    %.*s", s->len, s->data);
             }
         }
@@ -472,7 +472,7 @@ conf_rewrite(struct context *ctx)
     string_set_text(&false_str, "false");
 
     for (i = 0; i < npool; i++) {
-        cp = array_get(&cf->pool, i);
+        cp = array_get_known_type(&cf->pool, i, struct conf_pool);
 
         conf_write(fh, "%.*s:", cp->name.len, cp->name.data);
         conf_write(fh, "  listen: %.*s",
@@ -511,7 +511,7 @@ conf_rewrite(struct context *ctx)
         conf_write(fh, "  servers:");
 
         for (j = 0; j < nserver; j++) {
-            cs = array_get(&cp->server, j);
+            cs = array_get_known_type(&cp->server, j, struct conf_server);
             if (cs->name.len >= cs->pname.len
                     || nc_strncmp(cs->pname.data, cs->name.data, cs->name.len)) {
                 conf_write(fh, "   - %.*s %.*s",
@@ -528,7 +528,7 @@ conf_rewrite(struct context *ctx)
             conf_write(fh, "  sentinels:");
 
             for (j = 0; j < nserver; j++) {
-                cs = array_get(&cp->sentinel, j);
+                cs = array_get_known_type(&cp->sentinel, j, struct conf_server);
                 if (cs->name.len >= cs->pname.len
                         || nc_strncmp(cs->pname.data, cs->name.data, cs->name.len)) {
                     conf_write(fh, "   - %.*s %.*s",
@@ -701,8 +701,8 @@ conf_handler(struct conf *cf, void *data)
     }
 
     narg = array_n(&cf->arg);
-    value = array_get(&cf->arg, narg - 1);
-    key = array_get(&cf->arg, narg - 2);
+    value = array_get_known_type(&cf->arg, narg - 1, struct string);
+    key = array_get_known_type(&cf->arg, narg - 2, struct string);
 
     log_debug(LOG_VVERB, "conf handler on %.*s: %.*s", key->len, key->data,
               value->len, value->data);

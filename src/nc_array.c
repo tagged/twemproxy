@@ -136,6 +136,14 @@ array_pop(struct array *a)
 }
 
 void *
+array_top(struct array *a)
+{
+    ASSERT(a->nelem != 0);
+
+    return array_get(a, a->nelem - 1);
+}
+
+void *
 array_get(struct array *a, uint32_t idx)
 {
     void *elem;
@@ -146,14 +154,6 @@ array_get(struct array *a, uint32_t idx)
     elem = (uint8_t *)a->elem + (a->size * idx);
 
     return elem;
-}
-
-void *
-array_top(struct array *a)
-{
-    ASSERT(a->nelem != 0);
-
-    return array_get(a, a->nelem - 1);
 }
 
 void

@@ -101,7 +101,7 @@ stats_metric_reset(struct array *stats_metric)
     ASSERT(nmetric == STATS_POOL_NFIELD || nmetric == STATS_SERVER_NFIELD);
 
     for (i = 0; i < nmetric; i++) {
-        struct stats_metric *stm = array_get(stats_metric, i);
+        struct stats_metric *stm = array_get_known_type(stats_metric, i, struct stats_metric);
 
         stats_metric_init(stm);
     }
@@ -202,7 +202,7 @@ stats_server_map(struct array *stats_server, struct array *server)
     }
 
     for (i = 0; i < nserver; i++) {
-        struct server *s = array_get(server, i);
+        struct server *s = array_get_known_type(server, i, struct server);
         struct stats_server *sts = array_push(stats_server);
 
         status = stats_server_init(sts, s);
@@ -267,7 +267,7 @@ stats_pool_reset(struct array *stats_pool)
     npool = array_n(stats_pool);
 
     for (i = 0; i < npool; i++) {
-        struct stats_pool *stp = array_get(stats_pool, i);
+        struct stats_pool *stp = array_get_known_type(stats_pool, i, struct stats_pool);
         uint32_t j, nserver;
 
         stats_metric_reset(&stp->metric);
@@ -1034,8 +1034,8 @@ stats_pool_to_metric(struct context *ctx, struct server_pool *pool,
     pidx = pool->idx;
 
     st = ctx->stats;
-    stp = array_get(&st->current, pidx);
-    stm = array_get(&stp->metric, fidx);
+    stp = array_get_known_type(&st->current, pidx, struct stats_pool);
+    stm = array_get_known_type(&stp->metric, fidx, struct stats_metric);
 
     st->updated = 1;
 
@@ -1134,9 +1134,9 @@ stats_server_to_metric(struct context *ctx, struct server *server,
     pidx = server->owner->idx;
 
     st = ctx->stats;
-    stp = array_get(&st->current, pidx);
-    sts = array_get(&stp->server, sidx);
-    stm = array_get(&sts->metric, fidx);
+    stp = array_get_known_type(&st->current, pidx, struct stats_pool);
+    sts = array_get_known_type(&stp->server, sidx, struct stats_server);
+    stm = array_get_known_type(&sts->metric, fidx, struct stats_metric);
 
     st->updated = 1;
 

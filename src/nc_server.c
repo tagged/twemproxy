@@ -155,7 +155,7 @@ server_pool_each_set_failover(void *elem, void *data)
         return NC_OK;
     }
     for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
-        pool = array_get(pool_array, pool_index);
+        pool = array_get_known_type(pool_array, pool_index, struct server_pool);
 
         if (string_compare(&pool->name, &sp->failover_name) == 0 &&
             pool->redis == sp->redis) {
@@ -172,7 +172,7 @@ server_pool_validate_no_failover_loop(struct array *pool_array)
     uint32_t pool_index;
 
     for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
-        struct server_pool * const pool = array_get(pool_array, pool_index);
+        struct server_pool * const pool = array_get_known_type(pool_array, pool_index, struct server_pool);
         struct server_pool *next = pool;
         struct server_pool *next2 = pool->failover;
 
@@ -704,7 +704,7 @@ server_find_by_name(struct context *ctx, struct server_pool *server_pool, struct
 
     server = NULL;
     for(i = 0; i < array_n(&server_pool->server); i++) {
-        server = array_get(&server_pool->server, i);
+        server = array_get_known_type(&server_pool->server, i, struct server);
         if (!string_compare(&server->name, server_name)) {
             break;
         } else {
@@ -825,7 +825,7 @@ server_pool_sentinel_check(struct context *ctx, struct server_pool *pool)
     }
 
     pool->sentinel_idx = (pool->sentinel_idx + 1) % array_n(&pool->sentinel);
-    sentinel_connect(ctx, array_get(&pool->sentinel, pool->sentinel_idx));
+    sentinel_connect(ctx, array_get_known_type(&pool->sentinel, pool->sentinel_idx, struct server));
 }
 
 static rstatus_t
@@ -890,9 +890,15 @@ uint32_t
 server_pool_idx(struct server_pool *pool, uint8_t *key, uint32_t keylen)
 {
     uint32_t hash, idx;
+    uint32_t nservers = array_n(&pool->server);
 
-    ASSERT(array_n(&pool->server) != 0);
+    ASSERT(nservers != 0);
     ASSERT(key != NULL);
+
+    if (nservers == 1) {
+        /* Optimization: Skip dispatching for pools with only one server */
+        return 0;
+    }
 
     /*
      * If hash_tag: is configured for this server pool, we use the part of
@@ -943,7 +949,7 @@ server_pool_server(struct server_pool *pool, uint8_t *key, uint32_t keylen)
     uint32_t idx;
 
     idx = server_pool_idx(pool, key, keylen);
-    server = array_get(&pool->server, idx);
+    server = array_get_known_type(&pool->server, idx, struct server);
 
     log_debug(LOG_VERB, "key '%.*s' on dist %d maps to server '%.*s'", keylen,
               key, pool->dist_type, server->pname.len, server->pname.data);
@@ -1048,7 +1054,7 @@ server_pool_each_connect(void *elem, void *data)
         /* Try to connect the first sentinel. Proxy will try to reconnect
          * if it connects fail. So it's ok to ignore the return status.
          */
-        sentinel_connect(sp->ctx, array_get(&sp->sentinel, 0));
+        sentinel_connect(sp->ctx, array_get_known_type(&sp->sentinel, 0, struct server));
     }
 
     if (!sp->preconnect) {
