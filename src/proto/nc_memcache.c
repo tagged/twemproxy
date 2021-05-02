@@ -1076,7 +1076,7 @@ memcache_parse_rsp(struct msg *r)
                 ASSERT(r->vlen >= (uint32_t)(b->last - p));
                 r->vlen -= (uint32_t)(b->last - p);
                 m = b->last - 1;
-                p = m; /* move forward by vlen bytes */
+                p = m; /* move forward to the end of the current mbuf */
                 break;
             }
             switch (*m) {
