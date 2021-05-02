@@ -896,7 +896,7 @@ server_pool_idx(struct server_pool *pool, uint8_t *key, uint32_t keylen)
     ASSERT(key != NULL);
 
     if (nservers == 1) {
-        /* Optimization: Skip dispatching for pools with only one server */
+        /* Optimization: Skip hashing and dispatching for pools with only one server */
         return 0;
     }
 

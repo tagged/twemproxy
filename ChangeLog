@@ -20,6 +20,11 @@
 	  commands (tyson)
 	  Support nested multi-bulk redis commands (arrays of arrays...) up to a
 	  depth of 4. (qingping209)
+	  Log the event processing backend used and whether debug assertions are
+	  enabled in the `--help`/`--version` output. (tyson)
+	  Micro-optimizations for allocating msg structures, etc (tyson)
+	  Don't bother computing hash or looking up in distribution when a pool
+	  has only one server - the result will always be the same (tyson)
 
 2016-04-27  Misha Nasledov <misha@nasledov.com>
     * twemproxy: version 0.5.1 release
