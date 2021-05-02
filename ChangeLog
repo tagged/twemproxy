@@ -25,6 +25,7 @@
 	  Micro-optimizations for allocating msg structures, etc (tyson)
 	  Don't bother computing hash or looking up in distribution when a pool
 	  has only one server - the result will always be the same (tyson)
+	  Fix parsing bug when a redis error body contains no spaces (tyson)
 
 2016-04-27  Misha Nasledov <misha@nasledov.com>
     * twemproxy: version 0.5.1 release
