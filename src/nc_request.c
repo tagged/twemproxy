@@ -79,7 +79,7 @@ req_log(struct msg *req)
         return;
     }
 
-    kpos = array_get(req->keys, 0);
+    kpos = array_get_known_type(req->keys, 0, struct keypos);
 
     /*
      * FIXME: add backend addr here
@@ -608,7 +608,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     pool = c_conn->owner;
 
     ASSERT(array_n(msg->keys) > 0);
-    kpos = array_get(msg->keys, 0);
+    kpos = array_get_known_type(msg->keys, 0, struct keypos);
     key = kpos->start;
     keylen = (uint32_t)(kpos->end - kpos->start);
 

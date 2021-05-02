@@ -1305,7 +1305,7 @@ memcache_fragment_retrieval(struct msg *r, uint32_t nservers,
         /* This makes multigets with more than one key slightly less efficient, but reduces the cache miss rate for memcache multigets. */
         for (i = 0; i < array_n(r->keys); i++) {        /* for each key */
             struct msg *sub_msg;
-            struct keypos *kpos = array_get(r->keys, i);
+            struct keypos *kpos = array_get_known_type(r->keys, i, struct keypos);
 
             sub_msg = msg_get(r->owner, r->request, r->redis);
             if (sub_msg == NULL) {
@@ -1353,7 +1353,7 @@ memcache_fragment_retrieval(struct msg *r, uint32_t nservers,
     /** Build up the key1 key2 ... to be sent to a given server at index idx */
     for (i = 0; i < array_n(r->keys); i++) {        /* for each  key */
         struct msg *sub_msg;
-        struct keypos *kpos = array_get(r->keys, i);
+        struct keypos *kpos = array_get_known_type(r->keys, i, struct keypos);
         uint32_t idx = msg_backend_idx(r, kpos->start, kpos->end - kpos->start);
         ASSERT(idx < nservers);
 
