@@ -19,15 +19,11 @@
 #define _NC_MESSAGE_H_
 
 #include <nc_core.h>
+#include <proto/nc_proto.h>
 
 #define MAXDEPTH 4
 
 typedef void (*msg_parse_t)(struct msg *);
-typedef rstatus_t (*msg_add_auth_t)(struct context *ctx, struct conn *c_conn, struct conn *s_conn);
-typedef rstatus_t (*msg_fragment_t)(struct msg *, uint32_t, struct msg_tqh *);
-typedef void (*msg_coalesce_t)(struct msg *r);
-typedef rstatus_t (*msg_reply_t)(struct msg *r);
-typedef bool (*msg_failure_t)(struct msg *r);
 
 typedef enum msg_parse_result {
     MSG_PARSE_OK,                         /* parsing ok */
@@ -258,6 +254,8 @@ struct keypos {
     uint8_t             *end;             /* key end pos */
 };
 
+// This represents a message with a list of mbufs, that can be a redis/memcache request/response/error response.
+// http://www.catb.org/esr/structure-packing/ may be of use
 struct msg {
     TAILQ_ENTRY(msg)     c_tqe;           /* link in client q */
     TAILQ_ENTRY(msg)     s_tqe;           /* link in server q */
@@ -280,14 +278,6 @@ struct msg {
     msg_parse_t          parser;          /* message parser */
     msg_parse_result_t   result;          /* message parsing result */
 
-    msg_fragment_t       fragment;        /* message fragment */
-    msg_reply_t          reply;           /* generate message reply (example: ping) */
-    msg_add_auth_t       add_auth;        /* add auth message when we forward msg */
-    msg_failure_t        failure;         /* transient failure response? */
-
-    msg_coalesce_t       pre_coalesce;    /* message pre-coalesce */
-    msg_coalesce_t       post_coalesce;   /* message post-coalesce */
-
     msg_type_t           type;            /* message type */
 
     struct array         *keys;           /* array of keypos, for req */
@@ -299,10 +289,10 @@ struct msg {
     uint8_t              *narg_end;       /* narg end (redis) */
     uint32_t             narg;            /* # arguments (redis) */
     uint32_t             rnarg;           /* running # arg used by parsing fsa (redis) */
-    uint32_t             stack[MAXDEPTH]; /* stack to save rnarg of nesting multibulks */
-    uint8_t              nested_depth;    /* the depth of the current nested multibulk */
     uint32_t             rlen;            /* running length in parsing fsa (redis) */
     uint32_t             integer;         /* integer reply value (redis) */
+    uint32_t             stack[MAXDEPTH]; /* stack to save rnarg of nesting multibulks (redis) */
+    uint8_t              nested_depth;    /* the depth of the current nested multibulk (redis) */
 
     struct msg           *frag_owner;     /* owner of fragment message */
     uint32_t             nfrag;           /* # fragment */
@@ -311,17 +301,24 @@ struct msg {
     struct msg           **frag_seq;      /* sequence of fragment message, map from keys to fragments*/
 
     err_t                err;             /* errno on error? */
-    unsigned             error:1;         /* error? */
-    unsigned             ferror:1;        /* one or more fragments are in error? */
-    unsigned             request:1;       /* request? or response? */
-    unsigned             quit:1;          /* quit request? */
-    unsigned             noreply:1;       /* noreply? */
-    unsigned             noforward:1;     /* not need forward (example: ping) */
-    unsigned             done:1;          /* done? */
-    unsigned             fdone:1;         /* all fragments are done? */
-    unsigned             swallow:1;       /* swallow response? */
-    unsigned             redis:1;         /* redis? */
-    unsigned             heartbeat:1;     /* heartbeat? */
+    /* Micro-optimization: Allow writing to bit flags all at once without reading the data. */
+    /* Use an anonymous union of an anonymous struct and an integer to do this. */
+    union {
+        struct {
+            unsigned             error:1;         /* error? */
+            unsigned             ferror:1;        /* one or more fragments are in error? */
+            unsigned             request:1;       /* request? or response? */
+            unsigned             quit:1;          /* quit request? */
+            unsigned             noreply:1;       /* noreply? */
+            unsigned             noforward:1;     /* not need forward (example: ping) */
+            unsigned             done:1;          /* done? */
+            unsigned             fdone:1;         /* all fragments are done? */
+            unsigned             swallow:1;       /* swallow response? */
+            unsigned             redis:1;         /* redis? */
+            unsigned             heartbeat:1;     /* heartbeat? */
+        };
+        uint16_t raw_bitflags;
+    };
 };
 
 TAILQ_HEAD(msg_tqh, msg);
@@ -371,5 +368,50 @@ struct msg *rsp_recv_next(struct context *ctx, struct conn *conn, bool alloc);
 void rsp_recv_done(struct context *ctx, struct conn *conn, struct msg *msg, struct msg *nmsg);
 struct msg *rsp_send_next(struct context *ctx, struct conn *conn);
 void rsp_send_done(struct context *ctx, struct conn *conn, struct msg *msg);
+
+inline static rstatus_t msg_add_auth(struct msg *m, struct context *ctx, struct conn *c_conn, struct conn *s_conn)
+{
+    if (m->redis) {
+        return redis_add_auth(ctx, c_conn, s_conn);
+    } else {
+        return memcache_add_auth(ctx, c_conn, s_conn);
+    }
+}
+
+inline static bool msg_failure(struct msg *m)
+{
+    if (m->redis) {
+        return redis_failure(m);
+    } else {
+        return memcache_failure(m);
+    }
+}
+
+inline static void msg_post_coalesce(struct msg *m)
+{
+    if (m->redis) {
+        redis_post_coalesce(m);
+    } else {
+        memcache_post_coalesce(m);
+    }
+}
+
+inline static void msg_pre_coalesce(struct msg *m)
+{
+    if (m->redis) {
+        redis_pre_coalesce(m);
+    } else {
+        memcache_pre_coalesce(m);
+    }
+}
+
+inline static rstatus_t msg_fragment(struct msg *m, uint32_t nservers, struct msg_tqh *frag_msgq)
+{
+    if (m->redis) {
+        return redis_fragment(m, nservers, frag_msgq);
+    } else {
+        return memcache_fragment(m, nservers, frag_msgq);
+    }
+}
 
 #endif
