@@ -502,17 +502,23 @@ redis_parse_req(struct msg *r)
         switch (state) {
 
         case SW_START:
+            ASSERT(r->token == NULL);
+            if (ch != '*') {
+                /* redis commands are always arrays */
+                goto error;
+            }
+            r->token = p;
+            /* req_start <- p */
+            r->narg_start = p;
+            r->rnarg = 0;
+            state = SW_NARG;
+
+            break;
+
         case SW_NARG:
-            if (r->token == NULL) {
-                if (ch != '*') {
-                    goto error;
-                }
-                r->token = p;
-                /* req_start <- p */
-                r->narg_start = p;
-                r->rnarg = 0;
-                state = SW_NARG;
-            } else if (isdigit(ch)) {
+            /* SW_NARG: The number of arguments in the redis command array */
+            ASSERT(r->token != NULL);
+            if (isdigit(ch)) {
                 r->rnarg = r->rnarg * 10 + (uint32_t)(ch - '0');
             } else if (ch == CR) {
                 if (r->rnarg == 0) {
@@ -2043,6 +2049,10 @@ redis_parse_rsp(struct msg *r)
         switch (state) {
         case SW_START:
             r->type = MSG_UNKNOWN;
+
+            // Moved out of msg_get
+            r->nested_depth = 0;
+
             switch (ch) {
             case '+':
                 p = p - 1; /* go back by 1 byte */
@@ -2362,6 +2372,7 @@ redis_parse_rsp(struct msg *r)
                 r->narg_end = p;
                 r->token = NULL;
 
+                // The stack is always initialized before transitioning to another state.
                 r->stack[r->nested_depth-1] = r->narg;
                 state = SW_MULTIBULK_NARG_LF;
             } else {

@@ -195,7 +195,7 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
      * If auto_eject_host is enabled, this will also update the failure_count
      * and eject the server if it exceeds the failure_limit
      */
-    if (msg->failure(msg)) {
+    if (msg_failure(msg)) {
         log_debug(LOG_INFO, "server failure rsp %"PRIu64" len %"PRIu32" "
                   "type %d on s %d", msg->id, msg->mlen, msg->type, conn->sd);
         rsp_put(msg);
@@ -267,7 +267,7 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
     pmsg->peer = msg;
     msg->peer = pmsg;
 
-    msg->pre_coalesce(msg);
+    msg_pre_coalesce(msg);
 
     c_conn = pmsg->owner;
     ASSERT(c_conn->client && !c_conn->proxy);

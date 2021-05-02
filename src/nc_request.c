@@ -201,8 +201,9 @@ req_done(struct conn *conn, struct msg *msg)
     }
 
     ASSERT(msg->frag_owner->nfrag == nfragment);
+    ASSERT(msg->redis == msg->frag_owner->redis);
 
-    msg->post_coalesce(msg->frag_owner);
+    msg_post_coalesce(msg->frag_owner);
 
     log_debug(LOG_DEBUG, "req from c %d with fid %"PRIu64" and %"PRIu32" "
               "fragments is done", conn->sd, id, nfragment);
@@ -635,7 +636,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     }
 
     if (!conn_authenticated(s_conn)) {
-        status = msg->add_auth(ctx, c_conn, s_conn);
+        status = msg_add_auth(msg, ctx, c_conn, s_conn);
         if (status != NC_OK) {
             req_forward_error(ctx, c_conn, msg);
             s_conn->err = errno;
@@ -683,7 +684,8 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
             return;
         }
 
-        status = msg->reply(msg);
+        ASSERT(msg->redis);
+        status = redis_reply(msg);
         if (status != NC_OK) {
             conn->err = errno;
             return;
@@ -700,7 +702,7 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
     /* do fragment */
     pool = conn->owner;
     TAILQ_INIT(&frag_msgq);
-    status = msg->fragment(msg, array_n(&pool->server), &frag_msgq);
+    status = msg_fragment(msg, array_n(&pool->server), &frag_msgq);
     if (status != NC_OK) {
         if (!msg->noreply) {
             conn->enqueue_outq(ctx, conn, msg);
