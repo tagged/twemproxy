@@ -17,9 +17,9 @@
 	  Micro-optimization: Don't fragment memcache multigets with a single key
 	  into an array of commands to coalesce. (tyson)
 	  Support new redis commands and changes to argument counts of existing
-	  commands (tyson)
-	  Support nested multi-bulk redis commands (arrays of arrays...) up to a
-	  depth of 4. (qingping209)
+	  commands. (tyson)
+	  Support nested multi-bulk redis commands (arrays of arrays...)
+	  with an arbitrary depth. (qingping209, tyson)
 	  Log the event processing backend used and whether debug assertions are
 	  enabled in the `--help`/`--version` output. (tyson)
 	  Micro-optimizations for allocating msg structures, etc (tyson)
