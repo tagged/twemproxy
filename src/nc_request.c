@@ -95,7 +95,7 @@ req_log(struct msg *req)
               " key0 '%.*s' peer '%s' done %d error %d",
               req->id, req->owner->sd, req_time / 1000, req_time % 1000,
               req_type->len, req_type->data, req->narg, req_len, rsp_len,
-              kpos->end ? kpos->end - kpos->start : 0, kpos->start, peer_str, req->done, req->error);
+              (int)(kpos->end ? kpos->end - kpos->start : 0), kpos->start, peer_str, req->done, req->error);
 }
 
 void

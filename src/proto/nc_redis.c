@@ -1378,11 +1378,11 @@ redis_parse_req(struct msg *r)
             }
 
             if (r->type == MSG_UNKNOWN) {
-                log_error("parsed unsupported command '%.*s'", p - m, m);
+                log_error("parsed unsupported command '%.*s'", (int)(p - m), m);
                 goto error;
             }
 
-            log_debug(LOG_VERB, "parsed command '%.*s'", p - m, m);
+            log_debug(LOG_VERB, "parsed command '%.*s'", (int)(p - m), m);
 
             state = SW_REQ_TYPE_LF;
             break;
@@ -1429,7 +1429,7 @@ redis_parse_req(struct msg *r)
                 if (r->rlen >= mbuf_data_size()) {
                     log_error("parsed bad req %"PRIu64" of type %d with key "
                               "length %d that greater than or equal to maximum"
-                              " redis key length of %d", r->id, r->type,
+                              " redis key length of %zu", r->id, r->type,
                               r->rlen, mbuf_data_size());
                     goto error;
                 }
@@ -1943,7 +1943,7 @@ redis_parse_req(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -1956,7 +1956,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 enomem:
@@ -2543,7 +2543,7 @@ redis_parse_rsp(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -2556,7 +2556,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 error:
