@@ -43,6 +43,7 @@ static bool
 redis_argz(struct msg *r)
 {
     switch (r->type) {
+    /* TODO: PING has an optional argument, emulate that? */
     case MSG_REQ_REDIS_PING:
     case MSG_REQ_REDIS_QUIT:
     case MSG_REQ_REDIS_COMMAND:
@@ -1390,6 +1391,10 @@ redis_parse_req(struct msg *r)
             switch (ch) {
             case LF:
                 if (redis_argz(r)) {
+                    if (r->narg != 1) {
+                        /* It's an error to provide more than one argument. */
+                        goto error;
+                    }
                     goto done;
                 } else if (redis_nokey(r)) {
                     if (r->narg == 1) {
@@ -2271,6 +2276,8 @@ redis_parse_rsp(struct msg *r)
             break;
 
         case SW_BULK:
+            /* SW_BULK is used for top-level bulk string replies. */
+            /* Within an array, SW_MULTIBULK_ARG... helpers are used to parse bulk strings instead. */
             if (r->token == NULL) {
                 if (ch != '$') {
                     goto error;
