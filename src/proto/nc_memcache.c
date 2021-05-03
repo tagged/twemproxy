@@ -375,7 +375,7 @@ memcache_parse_req(struct msg *r)
                     log_error("parsed bad req %"PRIu64" of type %d with key "
                               "prefix '%.*s...' and length %d that exceeds "
                               "maximum key length", r->id, r->type, 16,
-                              r->token, p - r->token);
+                              r->token, (int)(p - r->token));
                     goto error;
                 } else if (keylen == 0) {
                     log_error("parsed bad req %"PRIu64" of type %d with an "
@@ -741,7 +741,7 @@ memcache_parse_req(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -753,7 +753,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 enomem:
@@ -1201,7 +1201,7 @@ memcache_parse_rsp(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -1214,7 +1214,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 error:
