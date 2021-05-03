@@ -398,7 +398,7 @@ conf_dump(struct conf *cf)
         log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
 
         for (j = 0; j < nserver; j++) {
-            s = array_get_known_type(&cp->server, j, struct string);
+            s = &array_get_known_type(&cp->server, j, struct conf_server)->pname;
             log_debug(LOG_VVERB, "    %.*s", s->len, s->data);
         }
 
@@ -407,7 +407,7 @@ conf_dump(struct conf *cf)
             log_debug(LOG_VVERB, "  sentinels: %"PRIu32"", nserver);
 
             for (j = 0; j < nserver; j++) {
-                s = array_get_known_type(&cp->sentinel, j, struct string);
+                s = &array_get_known_type(&cp->sentinel, j, struct conf_server)->pname;
                 log_debug(LOG_VVERB, "    %.*s", s->len, s->data);
             }
         }
