@@ -49,10 +49,7 @@ default_kv = {b'kkk-%d' % i : b'vvv-%d' % i for i in range(10)}
 def getconn():
     for r in all_redis:
         c = redis.Redis(r.host(), r.port())
-        try:
-            c.flushdb()
-        except e:
-            print
+        c.flushdb()
 
     r = redis.Redis(nc.host(), nc.port())
     return r

@@ -1,3 +1,5 @@
+travis.sh
+
 *.rpm
 *.o
 tags
@@ -9,6 +11,7 @@ tests/_binaries/
 *.gz
 src/nutredis
 src/nutcracker
+src/test_all
 
 # pyc
 *.pyc
