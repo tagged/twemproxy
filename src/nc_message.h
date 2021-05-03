@@ -21,8 +21,6 @@
 #include <nc_core.h>
 #include <proto/nc_proto.h>
 
-#define MAXDEPTH 4
-
 typedef void (*msg_parse_t)(struct msg *);
 
 typedef enum msg_parse_result {
@@ -287,12 +285,11 @@ struct msg {
 
     uint8_t              *narg_start;     /* narg start (redis) */
     uint8_t              *narg_end;       /* narg end (redis) */
-    uint32_t             narg;            /* # arguments (redis) */
+    uint32_t             narg;            /* # arguments (redis, memcache) */
     uint32_t             rnarg;           /* running # arg used by parsing fsa (redis) */
     uint32_t             rlen;            /* running length in parsing fsa (redis) */
     uint32_t             integer;         /* integer reply value (redis) */
-    uint32_t             stack[MAXDEPTH]; /* stack to save rnarg of nesting multibulks (redis) */
-    uint8_t              nested_depth;    /* the depth of the current nested multibulk (redis) */
+    uint8_t              is_top_level;    /* Is this top level (redis) */
 
     struct msg           *frag_owner;     /* owner of fragment message */
     uint32_t             nfrag;           /* # fragment */

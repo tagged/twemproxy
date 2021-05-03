@@ -140,6 +140,8 @@ def test_issue_323():
     c = getconn()
     assert_equal([1, b'OK'], c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
 
+    assert_equal([[[[[[[[[[[[[[[[[[[[b'value']]]]]]]]]]]]]]]]]]], b'other'], c.eval("return {{{{{{{{{{{{{{{{{{{{'value'}}}}}}}}}}}}}}}}}}}, 'other'}", 1, 'tmp'))
+
 def setup_and_wait():
     time.sleep(60*60)
 

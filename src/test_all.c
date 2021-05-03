@@ -67,7 +67,7 @@ static void test_redis_parse_req_success_case(char* data, int expected_type) {
     req->pos = m->start;
 
     redis_parse_req(req);
-    expect_same_ptr(req->pos, m->last, "redis_parse_req: expected req->pos to be m->last");
+    expect_same_ptr(m->last, req->pos, "redis_parse_req: expected req->pos to be m->last");
     expect_same_uint32_t(SW_START, req->state, "redis_parse_req: expected full buffer to be parsed");
     expect_same_uint32_t(expected_type, req->type, "redis_parse_req: expected request type to be parsed");
     expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
@@ -92,6 +92,7 @@ static void test_redis_parse_req_success(void) {
 }
 
 static void test_redis_parse_rsp_success_case(char* data) {
+    int original_failures = failures;
     struct conn fake_client = {0};
     struct mbuf *m = mbuf_get();
     const int SW_START = 0;  // Same as SW_START in redis_parse_rsp
@@ -110,11 +111,15 @@ static void test_redis_parse_rsp_success_case(char* data) {
     rsp->pos = m->start;
 
     redis_parse_rsp(rsp);
-    expect_same_ptr(rsp->pos, m->last, "redis_parse_rsp: expected rsp->pos to be m->last");
+    expect_same_ptr(m->last, rsp->pos, "redis_parse_rsp: expected rsp->pos to be m->last");
     expect_same_uint32_t(SW_START, rsp->state, "redis_parse_rsp: expected full buffer to be parsed");
+    expect_same_uint32_t(1, rsp->rnarg ? rsp->rnarg : 1, "expected remaining args to be 0 or 1");
 
     msg_put(rsp);
     // mbuf_put(m);
+    if (failures > original_failures) {
+        fprintf(stderr, "test_redis_parse_rsp_success_case failed for %s", data);
+    }
 }
 
 // Test support for https://redis.io/topics/protocol
@@ -159,7 +164,7 @@ static void test_memcache_parse_rsp_success_case(char* data, int expected) {
     rsp->pos = m->start;
 
     memcache_parse_rsp(rsp);
-    expect_same_ptr(rsp->pos, m->last, "memcache_parse_rsp: expected rsp->pos to be m->last");
+    expect_same_ptr(m->last, rsp->pos, "memcache_parse_rsp: expected rsp->pos to be m->last");
     expect_same_uint32_t(SW_START, rsp->state, "memcache_parse_rsp: expected state to be SW_START after parsing full buffer");
     expect_same_uint32_t(expected, rsp->type, "memcache_parse_rsp: expected response type to be parsed");
     expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
@@ -199,7 +204,7 @@ static void test_memcache_parse_req_success_case(char* data, int expected) {
     req->pos = m->start;
 
     memcache_parse_req(req);
-    expect_same_ptr(req->pos, m->last, "memcache_parse_req: expected req->pos to be m->last");
+    expect_same_ptr(m->last, req->pos, "memcache_parse_req: expected req->pos to be m->last");
     expect_same_uint32_t(SW_START, req->state, "memcache_parse_req: expected state to be SW_START after parsing full buffer");
     expect_same_uint32_t(expected, req->type, "memcache_parse_req: expected response type to be parsed");
     expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
@@ -230,6 +235,7 @@ int main(int argc, char **argv) {
     nci.mbuf_chunk_size = MBUF_SIZE;
     mbuf_init(&nci);
     msg_init();
+    log_init(7, NULL);
 
     test_hash_algorithms();
     test_config_parsing();
@@ -241,6 +247,7 @@ int main(int argc, char **argv) {
 
     msg_deinit();
     mbuf_deinit();
+    log_deinit();
 
     return failures > 0 ? 1 : 0;
 }
