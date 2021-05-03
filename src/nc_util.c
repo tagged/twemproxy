@@ -373,7 +373,7 @@ void
 nc_assert(const char *cond, const char *file, int line, int panic)
 {
     log_error("assert '%s' failed @ (%s, %d)", cond, file, line);
-    if (1) {
+    if (panic) {
         nc_stacktrace(1);
         abort();
     }

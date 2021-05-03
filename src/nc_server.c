@@ -1421,7 +1421,6 @@ server_restore_from_heartbeat(struct server *server, struct conn *conn)
     /* Update the pool of backend hosts to reintroduce this server now that it's healthy */
     status = server_pool_run(pool);
     if (status == NC_OK) {
-        log_stacktrace();
         log_debug(LOG_NOTICE, "updating pool %"PRIu32" '%.*s',"
                 "restored server '%.*s'", pool->idx,
                 pool->name.len, pool->name.data,
