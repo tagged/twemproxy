@@ -213,7 +213,8 @@ def test_multi_delete_on_backend_down():
 
     try:
         # Saw this fail in redis 6.2.2 spuriously in GitHub actions with a timeout.
-        assert_fail('Connection refused|reset by peer|Broken pipe', r.delete, 'key-1')
+        # Continue to assert that subsequent commands will recover.
+        assert_fail('Connection refused|reset by peer|Broken pipe|Connection timed out', r.delete, 'key-1')
         assert_equal(None, r.get('key-2'))
 
         keys = ['key-1', 'key-2', 'kkk-3']
