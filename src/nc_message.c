@@ -436,7 +436,7 @@ msg_type_string(msg_type_t type)
 bool
 msg_empty(struct msg *msg)
 {
-    return msg->mlen == 0 ? true : false;
+    return msg->mlen == 0;
 }
 
 /* read a line from msg's mbuf, then write to line_buf,

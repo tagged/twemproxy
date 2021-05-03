@@ -4,6 +4,8 @@
 #author : andyqzb
 #date   : 2015-07-18 15:20:21
 
+# TODO: Have a way to correctly run only a single test? Right now, test_system.test_sentinel works, but test_system.test_sentinel.test_name behaves differently and test_system hangs
+
 import os
 import sys
 import redis
@@ -20,7 +22,8 @@ from utils import *
 from nose import with_setup
 
 CLUSTER_NAME = 'ntest'
-nc_verbose = int(getenv('T_VERBOSE', 11))
+# Verbosity can be manually raised if there are issues with sentinel.
+nc_verbose = int(getenv('T_VERBOSE', 8))
 mbuf = int(getenv('T_MBUF', 512))
 large = int(getenv('T_LARGE', 1000))
 quorum = int(getenv('T_QUORUM', 2))
@@ -139,6 +142,40 @@ def test_sentinel_down():
 
     #the twemproxy use the first sentinel in the conf, so just stop the first.
     redis_sentinels[0].stop()
+    #twemproxy will reconnect a new sentinel after 2 sec(reuse the server_retry_timeout).
+    #Besides, the reconnect code is in the server_pool_conn, so we should send a request to twemproxy
+    #to let it reconnect a new sentinel after the server_retry_timeout.
+    time.sleep(T_SERVER_RETRY_SEC + 0.1)
+    assert(r.set(keys[0], values[0]))
+
+    for master in redis_masters:
+        master.stop()
+
+    time.sleep(down_time_msec / 1000 + T_FAILOVER_SEC)
+
+    for i in range(0, len(keys)):
+        assert(r.set(keys[i], values[i]))
+
+@with_setup(_setup, _teardown)
+def test_sentinel_reconnect():
+    r = redis.Redis(ncs[0].host(), ncs[0].port())
+
+    keys = []
+    values = []
+    for i in range(0, T_LOOP_COUNT):
+        keys.append('test_key:%d' % i)
+        values.append('test_value:%d' % i)
+        assert(r.set(keys[i], values[i]))
+
+    #the twemproxy use the first sentinel in the conf, so just stop the first.
+    redis_sentinels[0].stop()
+    redis_sentinels[1].stop()
+    redis_sentinels[2].stop()
+    time.sleep(1)
+    redis_sentinels[0].start()
+    redis_sentinels[1].start()
+    redis_sentinels[2].start()
+
     #twemproxy will reconnect a new sentinel after 2 sec(reuse the server_retry_timeout).
     #Besides, the reconnect code is in the server_pool_conn, so we should send a request to twemproxy
     #to let it reconnect a new sentinel after the server_retry_timeout.

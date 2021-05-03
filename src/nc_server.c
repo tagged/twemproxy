@@ -810,6 +810,7 @@ static void
 server_pool_sentinel_check(struct context *ctx, struct server_pool *pool)
 {
     int64_t now;
+    ASSERT(pool->redis);
 
     if (!array_n(&pool->sentinel)) {
         return;
@@ -823,6 +824,7 @@ server_pool_sentinel_check(struct context *ctx, struct server_pool *pool)
     if (now > 0 && now < pool->next_sentinel_connect) {
         return;
     }
+    log_debug(LOG_NOTICE, "server_pool_sentinel_check reconnecting after disconnect for pool=%.*s", pool->name.len, pool->name.data);
 
     pool->sentinel_idx = (pool->sentinel_idx + 1) % array_n(&pool->sentinel);
     sentinel_connect(ctx, array_get_known_type(&pool->sentinel, pool->sentinel_idx, struct server));
@@ -1367,6 +1369,7 @@ server_restore(struct context *ctx, struct conn *conn)
     if (server->fail == FAIL_STATUS_NORMAL) {
         return;
     }
+    ASSERT(!server->sentinel);
 
     /* If the server's in an error state: On adding a server back into the pool send a heartbeat command to check if it is still healthy and should still be in the pool (?) */
     send_heartbeat(ctx, conn, server);
