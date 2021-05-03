@@ -505,7 +505,7 @@ sentinel_proc_pub(struct context *ctx, struct server *sentinel, struct msg *msg)
     }
     server_port = nc_atoi(tmp_string.data, tmp_string.len);
     if (server_port < 0) {
-        log_error("tanslate server port string to int failed.");
+        log_error("translate server port string to int failed.");
         goto error;
     }
 
