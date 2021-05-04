@@ -8,6 +8,10 @@ a good server isn't available in the original pool.  This provides an alternate
 means for replacing cache servers to ejecting them from the continuum, useful
 when cache objects have long lifetimes that are vulnerable to stale data.
 
+- An external application or script can be set up to clear the data in the failover pool hosts
+  when the failover pool hosts stop receiving requests for a long enough time,
+  to avoid keeping stale data in the failover pool.
+
 **This should only be used with `auto_eject_hosts: false`** to avoid caching stale data
 and to ensure the failover pool is actually used.
 
