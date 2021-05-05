@@ -1,3 +1,22 @@
+2021-??-??  Tyson Andre
+    * twemproxy: version 0.5.2-ifwe18 release
+	  Add support for a failover pool with arbitrary depth (tyson, john irwin)
+	  Improve tolerance of DNS failures in commands sent to multiple
+	  redis/memcache servers such as memcache get(multiget), redis mget, etc.
+	  (i.e. fragmented commands) (tyson)
+	  Raise the severity of establishing connections, connection errors and pool update logs to
+	  LOG_NOTICE (tyson)
+	  Fix memory corruption seen when all hosts are ejected from a pool with
+	  auto_eject_hosts: true (tyson)
+	  Update tests to work with python 3 (tyson)
+	  Ensure file permissions aren't chosen based on uninitialized memory. (tyson)
+	  Add a heartbeat patch to detect dead servers (charsyam)
+	  Add improvements to the heartbeat patch (tyson)
+	  Decrease the verbosity of logging clients establishing/closing connections to
+	  nutcracker to LOG_INFO for use cases that can't support persistent connections (tyson)
+	  Micro-optimization: Don't fragment memcache multigets with a single key
+	  into an array of commands to coalesce. (tyson)
+
 2016-04-27  Misha Nasledov <misha@nasledov.com>
     * twemproxy: version 0.5.1 release
       updated to latest master from twitter/twemproxy

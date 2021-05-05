@@ -1,26 +1,14 @@
 # twemproxy (nutcracker)
 
-[![Build Status](https://github.com/ifwe/twemproxy/actions/workflows/main.yml/badge.svg?branch=build-nutredis)](https://github.com/ifwe/twemproxy/actions/workflows/main.yml?query=branch%3Abuild-nutredis)
+[![Build Status](https://github.com/ifwe/twemproxy/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/ifwe/twemproxy/actions/workflows/main.yml?query=branch%3Amaster)
+[![Build Status](https://travis-ci.org/ifwe/twemproxy.svg?branch=master)](https://travis-ci.org/ifwe/twemproxy)
 
 **twemproxy** (pronounced "two-em-proxy"), aka **nutcracker** is a fast and lightweight proxy for [memcached](http://www.memcached.org/) and [redis](http://redis.io/) protocol. It was built primarily to reduce the number of connections to the caching servers on the backend. This, together with protocol pipelining and sharding enables you to horizontally scale your distributed caching architecture.
 
 This is [if(we)](https://github.com/ifwe/)'s fork of twemproxy which has [@andyqzb](http://github.com/andyqzb)'s patch adding Redis Sentinel support merged in. See https://github.com/twitter/twemproxy/pull/324
 
-If you are looking to use this for redis, you most likely want the `master` branch.
-
-## Build
-
-To build twemproxy from [distribution tarball](https://drive.google.com/open?id=0B6pVMMV5F5dfMUdJV25abllhUWM&authuser=0):
-
-    $ ./configure
-    $ make
-    $ sudo make install
-
-To build twemproxy from [distribution tarball](https://drive.google.com/open?id=0B6pVMMV5F5dfMUdJV25abllhUWM&authuser=0) in _debug mode_:
-
-    $ CFLAGS="-ggdb3 -O0" ./configure --enable-debug=full
-    $ make
-    $ sudo make install
+If you are looking to use this for redis, you most likely want the `build-nutredis` branch.
+If you are looking to use this for memcached, you most likely want the `master` branch.
 
 To build twemproxy from source with _debug logs enabled_ and _assertions enabled_:
 
@@ -37,12 +25,6 @@ A quick checklist:
 + Use CFLAGS="-O1" ./configure && make
 + Use CFLAGS="-O3 -fno-strict-aliasing" ./configure && make
 + `autoreconf -fvi && ./configure` needs `automake` and `libtool` to be installed
-
-## Testing
-
-See [tests/README.rst](tests/README.rst) for the more extensive integration tests written in python and nosetests.
-
-If you want to unit test a C function, see the unit tests in the `src` folder. A tiny number of test cases exist that can be run with `make check` (`test_all.c`).
 
 ## Features
 
@@ -126,7 +108,7 @@ Twemproxy can be configured through a YAML file specified by the -c or --conf-fi
 + **sentinels**: A list of redis sentinel address, port and weight (name:port:weight or ip:port:weight) for this server pool. Weight of sentinel is not used.
 
 
-For example, the configuration file in [conf/nutcracker.yml](conf/nutcracker.yml), also shown below, configures 5 server pools with names - _alpha_, _beta_, _gamma_, _delta_ and omega. Clients that intend to send requests to one of the 10 servers in pool delta connect to port 22124 on 127.0.0.1. Clients that intend to send request to one of 2 servers in pool omega connect to unix path /tmp/gamma. Requests sent to pool alpha and omega have no timeout and might require timeout functionality to be implemented on the client side. On the other hand, requests sent to pool beta, gamma and delta timeout after 400 msec, 400 msec and 100 msec respectively when no response is received from the server. Of the 5 server pools, only pools alpha, gamma and delta are configured to use server ejection and hence are resilient to server failures. All the 5 server pools use ketama consistent hashing for key distribution with the key hasher for pools alpha, beta, gamma and delta set to fnv1a_64 while that for pool omega set to hsieh. Also only pool beta uses [nodes names](notes/recommendation.md#node-names-for-consistent-hashing) for consistent hashing, while pool alpha, gamma, delta and omega use 'host:port:weight' for consistent hashing. Finally, only pool alpha and beta can speak the redis protocol, while pool gamma, delta and omega speak memcached protocol.
+For example, the configuration file in [conf/nutcracker.yml](conf/nutcracker.yml), also shown below, configures 5 server pools with names - _alpha_, _beta_, _gamma_, _delta_ and omega. Clients that intend to send requests to one of the 10 servers in pool delta connect to port 22124 on 127.0.0.1. Clients that intend to send request to one of 2 servers in pool omega connect to unix path /tmp/gamma. Requests sent to pool alpha and omega have no timeout and might require timeout functionality to be implemented on the client side. On the other hand, requests sent to pool beta, gamma and delta timeout after 400 msec, 400 msec and 100 msec respectively when no response is received from the server. Of the 5 server pools, only pools alpha, gamma and delta are configured to use server ejection and hence are resilient to server failures. All the 5 server pools use ketama consistent hashing for key distribution with the key hasher for pools alpha, beta, gamma and delta set to fnv1a_64 while that for pool omega set to hsieh. Also only pool beta uses [nodes names](notes/recommendation.md#node-names-for-consistent-hashing) for consistent hashing, while pool alpha, gamma, delta and omega use 'host:port:weight' for consistent hashing. Finally, pool alpha, beta and sigma can speak the redis protocol, while pool gamma, deta and omega speak memcached protocol.
 
     alpha:
       listen: 127.0.0.1:22121
@@ -288,7 +270,7 @@ https://launchpad.net/~twemproxy/+archive/ubuntu/daily
 
 ## Companies using Twemproxy in Production
 + [Twitter](https://twitter.com/)
-+ [if(we)](http://ifwe.co)
++ [if(we)](http://ifwe.co/)
 + [Wikimedia](https://www.wikimedia.org/)
 + [Pinterest](http://pinterest.com/)
 + [Snapchat](http://www.snapchat.com/)

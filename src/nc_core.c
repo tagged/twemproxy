@@ -24,6 +24,31 @@
 
 static uint32_t ctx_id; /* context generation */
 
+static void
+core_failed_servers_init(struct context *ctx)
+{
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        array_init(&(ctx->failed_servers[i]), 10, sizeof(struct server *));
+    }
+}
+
+static void
+core_failed_servers_deinit(struct context *ctx)
+{
+    uint32_t i, n, nsize;
+
+    for (i = 0; i < 2; i++) {
+        nsize = array_n(&(ctx->failed_servers[i]));
+        for (n = 0; n < nsize; n++) {
+            /* This is buggy but core_failed_servers_deinit isn't even referenced - failed_servers is 2 arrays */
+            array_pop(&(ctx->failed_servers[n]));
+        }
+        array_deinit(&(ctx->failed_servers[n]));
+    }
+}
+
 static rstatus_t
 core_calc_connections(struct context *ctx)
 {
@@ -60,6 +85,11 @@ core_ctx_create(struct instance *nci)
     ctx->stats = NULL;
     ctx->evb = NULL;
     array_null(&ctx->pool);
+    array_null(&(ctx->failed_servers[0]));
+    array_null(&(ctx->failed_servers[1]));
+    ctx->failed_idx = 0;
+    ctx->fails = &(ctx->failed_servers[0]);
+
     ctx->max_timeout = nci->stats_interval;
     ctx->timeout = ctx->max_timeout;
     ctx->max_nfd = 0;
@@ -92,6 +122,8 @@ core_ctx_create(struct instance *nci)
         nc_free(ctx);
         return NULL;
     }
+
+    core_failed_servers_init(ctx);
 
     /* create stats per server pool */
     ctx->stats = stats_create(nci->stats_port, nci->stats_addr, nci->stats_interval,
@@ -208,7 +240,7 @@ core_send(struct context *ctx, struct conn *conn)
 
     status = conn->send(ctx, conn);
     if (status != NC_OK) {
-        log_debug(LOG_INFO, "send on %c %d failed: status: %d errno: %d %s",
+        log_debug(LOG_NOTICE, "send on %c %d failed: status: %d errno: %d %s",
                   conn->client ? 'c' : (conn->proxy ? 'p' : 's'), conn->sd,
                   status, errno, strerror(errno));
     }
@@ -231,7 +263,9 @@ core_close(struct context *ctx, struct conn *conn)
         type = conn->proxy ? 'p' : 's';
         addrstr = nc_unresolve_addr(conn->addr, conn->addrlen);
     }
-    log_debug(LOG_NOTICE, "close %c %d '%s' on event %04"PRIX32" eof %d done "
+    // Certain clients (e.g. PHP) frequently open and close connections by nature.
+    // Log at a lower severity.
+    log_debug(LOG_INFO, "close %c %d '%s' on event %04"PRIX32" eof %d done "
               "%d rb %zu sb %zu%c %s", type, conn->sd, addrstr, conn->events,
               conn->eof, conn->done, conn->recv_bytes, conn->send_bytes,
               conn->err ? ':' : ' ', conn->err ? strerror(conn->err) : "");
@@ -261,6 +295,43 @@ core_error(struct context *ctx, struct conn *conn)
     core_close(ctx, conn);
 }
 
+/* Try to re-establish any failed connections to servers once the retry timeout has elapsed for a server. */
+static void
+retry_connection(struct context *ctx)
+{
+    struct array *servers;
+    int idx;
+    struct server *server;
+    int64_t now;
+    uint32_t i, nsize;
+    rstatus_t status;
+
+    /* Alternate between two lists of failed servers (to only retry a given server once here?) */
+    servers = ctx->fails;
+    idx = (ctx->failed_idx == 0) ? 1 : 0;
+
+    ctx->failed_idx = idx;
+    ctx->fails = &(ctx->failed_servers[idx]);
+
+    now = nc_usec_now();
+    nsize = array_n(servers);
+    if (nsize == 0) {
+        return;
+    }
+
+    for (i = 0; i < nsize; i++) {
+        server = *(struct server **)array_pop(servers);
+        if (server->next_retry == 0 || server->next_retry < now) {
+            status = server_reconnect(ctx, server);
+            if (status != NC_OK) {
+                add_failed_server(ctx, server);
+            }
+        } else {
+            add_failed_server(ctx, server);
+        }
+    }
+}
+
 static void
 core_timeout(struct context *ctx)
 {
@@ -272,14 +343,14 @@ core_timeout(struct context *ctx)
         msg = msg_tmo_min();
         if (msg == NULL) {
             ctx->timeout = ctx->max_timeout;
-            return;
+            break;
         }
 
         /* skip over req that are in-error or done */
 
         if (msg->error || msg->done) {
             msg_tmo_delete(msg);
-            continue;
+            break;
         }
 
         /*
@@ -304,6 +375,8 @@ core_timeout(struct context *ctx)
 
         core_close(ctx, conn);
     }
+
+    retry_connection(ctx);
 }
 
 rstatus_t
@@ -324,6 +397,7 @@ core_core(void *arg, uint32_t events)
               conn->client ? 'c' : (conn->proxy ? 'p' : 's'), conn->sd);
 
     conn->events = events;
+    conn->restore(ctx, conn);
 
     /* error takes precedence over read | write */
     if (events & EVENT_ERR) {

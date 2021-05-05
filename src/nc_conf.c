@@ -110,6 +110,10 @@ static struct command conf_commands[] = {
       conf_add_server,
       offsetof(struct conf_pool, server) },
 
+    { string("failover"),
+      conf_set_string,
+      offsetof(struct conf_pool, failover_name) },
+
     { string("sentinels"),
       conf_add_server,
       offsetof(struct conf_pool, sentinel) },
@@ -172,6 +176,7 @@ conf_server_each_transform(void *elem, void *data)
 
     s->next_retry = 0LL;
     s->failure_count = 0;
+    s->fail = FAIL_STATUS_NORMAL;
 
     /* proxy will set sentinel flag after server transform */
     s->sentinel = 0;
@@ -218,6 +223,8 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
 
     cp->valid = 0;
 
+    string_init(&cp->failover_name);
+
     status = string_duplicate(&cp->name, name);
     if (status != NC_OK) {
         return status;
@@ -259,6 +266,8 @@ conf_pool_deinit(struct conf_pool *cp)
         conf_server_deinit(array_pop(&cp->server));
     }
     array_deinit(&cp->server);
+
+    string_deinit(&cp->failover_name);
 
     log_debug(LOG_VVERB, "deinit conf pool %p", cp);
 }
@@ -322,6 +331,9 @@ conf_pool_each_transform(void *elem, void *data)
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
 
+    sp->failover_name = cp->failover_name;
+    sp->failover = NULL;
+
     status = server_init(&sp->server, &cp->server, sp, false);
     if (status != NC_OK) {
         return status;
@@ -376,6 +388,11 @@ conf_dump(struct conf *cf)
                   cp->server_retry_timeout);
         log_debug(LOG_VVERB, "  server_failure_limit: %d",
                   cp->server_failure_limit);
+        if (cp->failover_name.len != 0) {
+          log_debug(LOG_VVERB, "  failover: \"%.*s\"", cp->failover_name.len, cp->failover_name.data);
+        } else {
+          log_debug(LOG_VVERB, "  no failover");
+        }
 
         nserver = array_n(&cp->server);
         log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
@@ -1317,6 +1334,14 @@ conf_pre_validate(struct conf *cf)
 }
 
 static int
+conf_server_pname_cmp(const void *t1, const void *t2)
+{
+    const struct conf_server *s1 = t1, *s2 = t2;
+
+    return string_compare(&s1->pname, &s2->pname);
+}
+
+static int
 conf_server_name_cmp(const void *t1, const void *t2)
 {
     const struct conf_server *s1 = t1, *s2 = t2;
@@ -1412,7 +1437,7 @@ conf_validate_sentinel(struct conf *cf, struct conf_pool *cp)
 
         if (string_compare(&cs1->name, &cs2->name) == 0) {
             log_error("conf: pool '%.*s' has sentinels with same name '%.*s'",
-                      cp->name.len, cp->name.data, cs1->name.len, 
+                      cp->name.len, cp->name.data, cs1->name.len,
                       cs1->name.data);
             valid = false;
             break;
@@ -1619,7 +1644,7 @@ conf_create(char *filename)
     return cf;
 
 error:
-    log_stderr("nutredis: configuration file '%s' syntax is invalid",
+    log_stderr("nutcracker: configuration file '%s' syntax is invalid",
                filename);
     fclose(cf->fh);
     cf->fh = NULL;

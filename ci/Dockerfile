@@ -9,29 +9,22 @@ ENV LAST_MODIFIED_DATE 2021-04-09
 # which (used below)
 # python-setuptools for pip
 RUN yum install -y \
+        https://repo.ius.io/ius-release-el7.rpm \
+        https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
+RUN yum install -y \
         tar git gcc make tcl \
         autoconf automake libtool wget \
         memcached \
-		socat \
-		which \
-		python-setuptools && \
-	yum clean all
+        socat \
+        which \
+        python36u python36u-pip && \
+    yum clean all
 
 # Install nosetest dependencies
 RUN pip3.6 install nose && \
-        pip3.6 install 'git+https://github.com/andymccurdy/redis-py.git@3.5.3' && \
+        pip3.6 install 'git+https://github.com/andymccurdy/redis-py.git@2.10.6' && \
         pip3.6 install 'git+https://github.com/linsomniac/python-memcached.git@1.58'
-# I can't install redis or redis-server in centos:7 (didn't add package), adding to centos 6
-# Install redis and redis sentinel, needed for unit tests
-# RUN yum install -y redis redis-sentinel
-
-ARG REDIS_VER=3.2.11
-RUN wget https://github.com/antirez/redis/archive/$REDIS_VER.tar.gz && \
-	tar zxvf $REDIS_VER.tar.gz && \
-	pushd redis-$REDIS_VER && \
-		make install && \
-	popd && \
-	rm -r redis-*
 
 # This will build and twemproxy 0.4.1 (with sflow)
 # Annoyingly, can't add multiple directories at once.

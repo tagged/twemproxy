@@ -135,13 +135,13 @@ static rstatus_t
 sentinel_proc_sentinel_info(struct context *ctx, struct server *sentinel, struct msg *msg)
 {
     rstatus_t status;
-    int i, switch_num, server_port;
-    int master_num = 0;
+    int i, master_num, switch_num, server_port;
     struct string server_name;
     struct string server_ip;
     struct string const_sentinel_masters_prefix;
     struct string const_sentinel_key_prefix;
     struct string const_master_prefix;
+    struct string const_server_key;
     struct string const_name_key;
     struct string const_address_key;
     struct string const_status_key;

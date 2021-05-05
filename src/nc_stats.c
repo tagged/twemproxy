@@ -369,6 +369,10 @@ stats_create_buf(struct stats *st)
     size += int64_max_digits;
     size += key_value_extra;
 
+    size += st->ncurr_cconn_str.len;
+    size += int64_max_digits;
+    size += key_value_extra;
+
     /* server pools */
     for (i = 0; i < array_n(&st->sum); i++) {
         struct stats_pool *stp = array_get(&st->sum, i);
@@ -522,6 +526,11 @@ stats_add_header(struct stats *st)
     }
 
     status = stats_add_num(st, &st->ncurr_conn_str, conn_ncurr_conn());
+    if (status != NC_OK) {
+        return status;
+    }
+
+    status = stats_add_num(st, &st->ncurr_cconn_str, conn_ncurr_cconn());
     if (status != NC_OK) {
         return status;
     }
@@ -916,7 +925,7 @@ stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
     st->sd = -1;
 
     string_set_text(&st->service_str, "service");
-    string_set_text(&st->service, "nutredis");
+    string_set_text(&st->service, "nutcracker");
 
     string_set_text(&st->source_str, "source");
     string_set_raw(&st->source, source);
@@ -929,6 +938,7 @@ stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
 
     string_set_text(&st->ntotal_conn_str, "total_connections");
     string_set_text(&st->ncurr_conn_str, "curr_connections");
+    string_set_text(&st->ncurr_cconn_str, "curr_client_connections");
 
     st->updated = 0;
     st->aggregate = 0;

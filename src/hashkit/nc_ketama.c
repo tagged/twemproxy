@@ -25,9 +25,9 @@
 
 #define KETAMA_CONTINUUM_ADDITION   10  /* # extra slots to build into continuum */
 #define KETAMA_POINTS_PER_SERVER    160 /* 40 points per hash */
-#define KETAMA_MAX_HOSTLEN          86
+#define KETAMA_MAX_HOSTLEN          273 /* 273 is 255(domain or ip)+1(:)+5(port)+1(-)+10(uint32)+1(\0) */
 
-uint32_t
+static uint32_t
 ketama_hash(const char *key, size_t key_length, uint32_t alignment)
 {
     unsigned char results[16];
@@ -90,12 +90,8 @@ ketama_update(struct server_pool *pool)
         struct server *server = array_get(&pool->server, server_index);
 
         if (pool->auto_eject_hosts) {
-            if (server->next_retry <= now) {
-                server->next_retry = 0LL;
+            if (server->fail == FAIL_STATUS_NORMAL) {
                 nlive_server++;
-            } else if (pool->next_rebuild == 0LL ||
-                       server->next_retry < pool->next_rebuild) {
-                pool->next_rebuild = server->next_retry;
             }
         } else {
             nlive_server++;
@@ -104,7 +100,7 @@ ketama_update(struct server_pool *pool)
         ASSERT(server->weight > 0);
 
         /* count weight only for live servers */
-        if (!pool->auto_eject_hosts || server->next_retry <= now) {
+        if (!pool->auto_eject_hosts || server->fail == FAIL_STATUS_NORMAL) {
             total_weight += server->weight;
         }
     }
@@ -154,7 +150,7 @@ ketama_update(struct server_pool *pool)
 
         server = array_get(&pool->server, server_index);
 
-        if (pool->auto_eject_hosts && server->next_retry > now) {
+        if (pool->auto_eject_hosts && server->fail != FAIL_STATUS_NORMAL) {
             continue;
         }
 
@@ -178,6 +174,12 @@ ketama_update(struct server_pool *pool)
             hostlen = snprintf(host, KETAMA_MAX_HOSTLEN, "%.*s-%u",
                                server->name.len, server->name.data,
                                pointer_index - 1);
+            if (hostlen >= KETAMA_MAX_HOSTLEN) {
+                // > The generated string has a length of at most n-1, leaving space for the additional terminating null character.
+                // Not really important since this should never get hit in practice according to https://devblogs.microsoft.com/oldnewthing/20120412-00/?p=7873
+                hostlen = KETAMA_MAX_HOSTLEN - 1;
+                log_error("Unexpectedly forced to truncate a hostname in ketama pool to %d characters for %.*s", KETAMA_MAX_HOSTLEN - 1, KETAMA_MAX_HOSTLEN - 1, host);
+            }
 
             for (x = 0; x < pointer_per_hash; x++) {
                 value = ketama_hash(host, hostlen, x);
@@ -188,6 +190,8 @@ ketama_update(struct server_pool *pool)
         pointer_counter += pointer_per_server;
     }
 
+    /* The continuum should have only been regenerated if there was at least one live server */
+    ASSERT(pointer_counter > 0);
     pool->ncontinuum = pointer_counter;
     qsort(pool->continuum, pool->ncontinuum, sizeof(*pool->continuum),
           ketama_item_cmp);
