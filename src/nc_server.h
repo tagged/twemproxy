@@ -111,7 +111,6 @@ struct server_pool {
     uint32_t           nserver_continuum;    /* # servers - live and dead on continuum (const) */
     struct continuum   *continuum;           /* continuum */
     uint32_t           nlive_server;         /* # live server */
-    int64_t            next_rebuild;         /* next distribution rebuild time in usec */
     int64_t            next_sentinel_connect;/* next reconnect sentinel time in usec */
     uint32_t           sentinel_idx;         /* the connected sentinel's idx */
 

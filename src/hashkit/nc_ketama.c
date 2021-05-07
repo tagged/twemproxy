@@ -85,7 +85,6 @@ ketama_update(struct server_pool *pool)
     nserver = array_n(&pool->server);
     nlive_server = 0;
     total_weight = 0;
-    pool->next_rebuild = 0LL;
     for (server_index = 0; server_index < nserver; server_index++) {
         struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
