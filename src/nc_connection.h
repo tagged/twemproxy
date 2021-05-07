@@ -99,6 +99,7 @@ struct conn {
     unsigned            done:1;          /* done? aka close? */
     unsigned            redis:1;         /* redis? */
     unsigned            authenticated:1; /* authenticated? */
+    unsigned            sent_heartbeat:1; /* sent a heartbeat already? */
 
     conn_status_t       status;          /* conn status, just used for sentinel at present */
 };

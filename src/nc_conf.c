@@ -104,7 +104,7 @@ static struct command conf_commands[] = {
 
     { string("server_failure_limit"),
       conf_set_num,
-      offsetof(struct conf_pool, server_failure_limit) },
+      offsetof(struct conf_pool, unused_server_failure_limit) },
 
     { string("servers"),
       conf_add_server,
@@ -217,7 +217,7 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->auto_eject_hosts = CONF_UNSET_NUM;
     cp->server_connections = CONF_UNSET_NUM;
     cp->server_retry_timeout = CONF_UNSET_NUM;
-    cp->server_failure_limit = CONF_UNSET_NUM;
+    cp->unused_server_failure_limit = CONF_UNSET_NUM;
 
     array_null(&cp->server);
 
@@ -326,7 +326,6 @@ conf_pool_each_transform(void *elem, void *data)
     sp->client_connections = (uint32_t)cp->client_connections;
     sp->server_connections = (uint32_t)cp->server_connections;
     sp->server_retry_timeout = (int64_t)cp->server_retry_timeout * 1000LL;
-    sp->server_failure_limit = (uint32_t)cp->server_failure_limit;
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
 
@@ -385,8 +384,6 @@ conf_dump(struct conf *cf)
                   cp->server_connections);
         log_debug(LOG_VVERB, "  server_retry_timeout: %d",
                   cp->server_retry_timeout);
-        log_debug(LOG_VVERB, "  server_failure_limit: %d",
-                  cp->server_failure_limit);
         if (cp->failover_name.len != 0) {
           log_debug(LOG_VVERB, "  failover: \"%.*s\"", cp->failover_name.len, cp->failover_name.data);
         } else {
@@ -1525,8 +1522,8 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
         cp->server_retry_timeout = CONF_DEFAULT_SERVER_RETRY_TIMEOUT;
     }
 
-    if (cp->server_failure_limit == CONF_UNSET_NUM) {
-        cp->server_failure_limit = CONF_DEFAULT_SERVER_FAILURE_LIMIT;
+    if (cp->unused_server_failure_limit == CONF_UNSET_NUM) {
+        cp->unused_server_failure_limit = CONF_DEFAULT_SERVER_FAILURE_LIMIT;
     }
 
     if (!cp->redis && cp->redis_auth.len > 0) {
