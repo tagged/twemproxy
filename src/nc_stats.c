@@ -173,6 +173,7 @@ stats_server_init(struct stats_server *sts, struct server *s)
     rstatus_t status;
 
     sts->name = s->name;
+    sts->server = s;
     array_null(&sts->metric);
 
     status = stats_server_metric_init(sts);
@@ -184,7 +185,6 @@ stats_server_init(struct stats_server *sts, struct server *s)
               sts->name.len, sts->name.data, array_n(&sts->metric));
 
     return NC_OK;
-
 }
 
 static rstatus_t
@@ -404,6 +404,9 @@ stats_create_buf(struct stats *st)
                 size += int64_max_digits;
                 size += key_value_extra;
             }
+
+            // The possible statuses are "reconnecting", "heartbeat", "normal", and "unknown" - "reconnecting" is the longest one
+            size += sizeof("\"connection_status\":\"reconnecting\", ") - 1;
         }
     }
 
@@ -449,6 +452,28 @@ stats_add_string(struct stats *st, struct string *key, struct string *val)
 
     n = nc_snprintf(pos, room, "\"%.*s\":\"%.*s\", ", key->len, key->data,
                     val->len, val->data);
+    if (n < 0 || n >= (int)room) {
+        return NC_ERROR;
+    }
+
+    buf->len += (size_t)n;
+
+    return NC_OK;
+}
+
+static rstatus_t
+stats_add_hardcoded_string(struct stats *st, const char* key, const char* value)
+{
+    struct stats_buffer *buf;
+    uint8_t *pos;
+    size_t room;
+    int n;
+
+    buf = &st->buf;
+    pos = buf->data + buf->len;
+    room = buf->size - buf->len - 1;
+
+    n = nc_snprintf(pos, room, "\"%s\":\"%s\", ", key, value);
     if (n < 0 || n >= (int)room) {
         return NC_ERROR;
     }
@@ -744,6 +769,23 @@ stats_make_rsp(struct stats *st)
                 return status;
             }
 
+            /* This may be prone to a race condition, but at worst should return "unknown"? */
+            /* Read the status directly to aid in debugging issues with the heartbeat patch. */
+            /* NOTE: If new statuses are added, stats_create_buf should be updated with the new longest length */
+            uint32_t fail = sts->server->fail;
+            const char *status_string = "unknown";
+            if (fail == FAIL_STATUS_NORMAL) {
+                status_string = "normal";
+            } else if (fail == FAIL_STATUS_ERR_TRY_CONNECT) {
+                status_string = "reconnecting";
+            } else if (fail == FAIL_STATUS_ERR_TRY_HEARTBEAT)  {
+                status_string = "heartbeat";
+            }
+            status = stats_add_hardcoded_string(st, "connection_status", status_string);
+            if (status != NC_OK) {
+                return status;
+            }
+
             status = stats_end_nesting(st);
             if (status != NC_OK) {
                 return status;
@@ -960,6 +1002,7 @@ stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
         goto error;
     }
 
+    /* Allocate a fixed-sized buffer when starting up that will be used for all future responses to stats tcp requests */
     status = stats_create_buf(st);
     if (status != NC_OK) {
         goto error;

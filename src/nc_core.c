@@ -307,6 +307,8 @@ retry_connection(struct context *ctx)
     rstatus_t status;
 
     /* Alternate between two lists of failed servers (to only retry a given server once here?) */
+    /* add_failed_server() has a check to ensure there are no duplicates, which is useful if connecting */
+    /* attempts are slow or to make the state machine for reconnecting easier to reason about. */
     servers = ctx->fails;
     idx = (ctx->failed_idx == 0) ? 1 : 0;
 

@@ -72,6 +72,7 @@ struct stats_metric {
 struct stats_server {
     struct string name;   /* server name (ref) */
     struct array  metric; /* stats_metric[] for server codec */
+    const struct server *server; /* read-only server pointer for inspecting current state. */
 };
 
 struct stats_pool {
