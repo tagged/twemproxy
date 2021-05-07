@@ -52,18 +52,11 @@ modula_update(struct server_pool *pool)
     for (server_index = 0; server_index < nserver; server_index++) {
         struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
-        if (pool->auto_eject_hosts) {
-            if (server->fail == FAIL_STATUS_NORMAL) {
-                nlive_server++;
-            }
-        } else {
-            nlive_server++;
-        }
-
         ASSERT(server->weight > 0);
 
         /* count weight only for live servers */
-        if (!pool->auto_eject_hosts || server->fail == FAIL_STATUS_NORMAL) {
+        if (should_keep_server_in_pool(pool, server)) {
+            nlive_server++;
             total_weight += server->weight;
         }
     }
@@ -111,7 +104,7 @@ modula_update(struct server_pool *pool)
     for (server_index = 0; server_index < nserver; server_index++) {
         struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
-        if (pool->auto_eject_hosts && server->fail != FAIL_STATUS_NORMAL) {
+        if (!should_keep_server_in_pool(pool, server)) {
             continue;
         }
 

@@ -505,7 +505,7 @@ conf_rewrite(struct context *ctx)
         conf_write_or_fail(fh, "  server_retry_timeout: %d",
                   cp->server_retry_timeout);
         conf_write_or_fail(fh, "  server_failure_limit: %d",
-                  cp->server_failure_limit);
+                  cp->unused_server_failure_limit);
 
         nserver = array_n(&cp->server);
         conf_write_or_fail(fh, "  servers:");

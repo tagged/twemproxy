@@ -62,7 +62,7 @@ array_n(const struct array *a)
 #define array_get_known_type(a, idx, type) ((type *)array_get_known_element_size((a), (idx), sizeof(type)))
 
 static inline void *
-array_get_known_element_size(struct array *a, uint32_t idx, size_t size)
+array_get_known_element_size(const struct array *a, uint32_t idx, size_t size)
 {
     void *elem;
 
@@ -80,11 +80,11 @@ void array_destroy(struct array *a);
 rstatus_t array_init(struct array *a, uint32_t n, size_t size);
 void array_deinit(struct array *a);
 
-uint32_t array_idx(struct array *a, void *elem);
+uint32_t array_idx(const struct array *a, const void *elem);
 void *array_push(struct array *a);
 void *array_pop(struct array *a);
-void *array_top(struct array *a);
-void *array_get(struct array *a, uint32_t idx);
+void *array_top(const struct array *a);
+void *array_get(const struct array *a, uint32_t idx);
 void array_swap(struct array *a, struct array *b);
 void array_sort(struct array *a, array_compare_t compare);
 rstatus_t array_each(struct array *a, array_each_t func, void *data);

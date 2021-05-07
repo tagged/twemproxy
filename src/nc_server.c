@@ -374,7 +374,7 @@ server_failure(struct context *ctx, struct server *server)
     stats_server_set_ts(ctx, server, server_ejected_at, now);
 
     log_debug(LOG_NOTICE, "update pool %"PRIu32" '%.*s' to delete server '%.*s' "
-              "for next %"PRIu32" secs", pool->idx, pool->name.len,
+              "for next %"PRIu64" secs", pool->idx, pool->name.len,
               pool->name.data, server->pname.len, server->pname.data,
               pool->server_retry_timeout / 1000 / 1000);
 
@@ -805,11 +805,11 @@ static void
 server_pool_sentinel_check(struct context *ctx, struct server_pool *pool)
 {
     int64_t now;
-    ASSERT(pool->redis);
 
     if (!array_n(&pool->sentinel)) {
         return;
     }
+    ASSERT(pool->redis);
 
     if (pool->next_sentinel_connect == 0LL) {
         return;
@@ -1328,8 +1328,10 @@ server_restore(struct context *ctx, struct conn *conn)
     ASSERT(!server->sentinel);
 
     /* If the server's in an error state: On adding a server back into the pool send a heartbeat command to check if it is still healthy and should still be in the pool (?) */
+    /* This is just enqueueing the message to be sent, so something went horribly wrong if it couldn't connect */
     if (send_heartbeat(ctx, conn, server) != NC_OK) {
-        log_error("Unexpectedly failed to send a heartbeat to the server to attempt reconnection");
+        log_error("Unexpectedly failed to send a heartbeat to the server '%.*s' to attempt reconnection, this should not happen", server->name.len, server->name.data);
+        server_close(ctx, conn);
     }
 }
 
@@ -1360,14 +1362,15 @@ void
 add_failed_server(struct context *ctx, struct server *server)
 {
     struct server **pserver;
+    uint32_t i, n;
 
     server->fail = FAIL_STATUS_ERR_TRY_CONNECT;
-    for (uint32_t i = 0; i < array_n(ctx->fails); i++) {
+    for (i = 0; i < array_n(ctx->fails); i++) {
         struct server *other = *(struct server **)array_get(ctx->fails, i);
         if (other == server) {
-            log_debug(LOG_INFO, "Filtering out redundant attempt to reconnect to server %.*s in pool %.*s",
+            /* Don't add a server to fails if it's already in the array. This is actually common when a server is rejecting connections. */
+            log_debug(LOG_DEBUG, "Filtering out redundant attempt to reconnect to server %.*s in pool %.*s",
                     server->name.len, server->name.data, server->owner->name.len, server->owner->name.data);
-            /* Don't add a server to fails if it's already in the array */
             return;
         }
     }
