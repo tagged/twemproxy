@@ -8,7 +8,7 @@ m4_define([NC_BUGS], [manj@cs.stanford.edu])
 
 # Initialize autoconf
 AC_PREREQ([2.64])
-AC_INIT([nutcracker], [NC_MAJOR.NC_MINOR.NC_PATCH-NC_ITERATION], [NC_BUGS])
+AC_INIT([nutredis], [NC_MAJOR.NC_MINOR.NC_PATCH-NC_ITERATION], [NC_BUGS])
 AC_CONFIG_SRCDIR([src/nc.c])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config.h:config.h.in])

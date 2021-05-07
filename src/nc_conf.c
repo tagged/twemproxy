@@ -1656,7 +1656,7 @@ conf_create(char *filename)
     return cf;
 
 error:
-    log_stderr("nutcracker: configuration file '%s' syntax is invalid",
+    log_stderr("nutredis: configuration file '%s' syntax is invalid",
                filename);
     fclose(cf->fh);
     cf->fh = NULL;

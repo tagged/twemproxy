@@ -31,9 +31,9 @@ endif
 
 SUBDIRS = hashkit proto event
 
-sbin_PROGRAMS = nutcracker
+sbin_PROGRAMS = nutredis
 
-nutcracker_SOURCES =			\
+nutredis_SOURCES =			\
 	nc_core.c nc_core.h		\
 	nc_connection.c nc_connection.h	\
 	nc_client.c nc_client.h		\
@@ -55,10 +55,10 @@ nutcracker_SOURCES =			\
 	nc_queue.h			\
 	nc.c
 
-nutcracker_LDADD = $(top_builddir)/src/hashkit/libhashkit.a
-nutcracker_LDADD += $(top_builddir)/src/proto/libproto.a
-nutcracker_LDADD += $(top_builddir)/src/event/libevent.a
-nutcracker_LDADD += $(top_builddir)/contrib/yaml-0.1.4/src/.libs/libyaml.a
+nutredis_LDADD = $(top_builddir)/src/hashkit/libhashkit.a
+nutredis_LDADD += $(top_builddir)/src/proto/libproto.a
+nutredis_LDADD += $(top_builddir)/src/event/libevent.a
+nutredis_LDADD += $(top_builddir)/contrib/yaml-0.1.4/src/.libs/libyaml.a
 
 TESTS = test_all
 bin_PROGRAMS = test_all

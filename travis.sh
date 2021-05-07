@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Main ci script for nutcracker tests
+# Main ci script for nutredis tests
 set -xeu
 
 function print_usage() {
@@ -16,7 +16,7 @@ elif [[ "$#" > 0 ]]; then
 	REDIS_VER="$1"
 fi
 
-PACKAGE_NAME="nutcrackerci"
+PACKAGE_NAME="nutredisci"
 
 TAG=$( git describe --always )
 DOCKER_IMG_NAME=twemproxy-build-$PACKAGE_NAME-$REDIS_VER-$TAG
@@ -25,7 +25,7 @@ rm -rf twemproxy
 
 DOCKER_TAG=twemproxy-$PACKAGE_NAME-$REDIS_VER:$TAG
 
-docker build -f ci/Dockerfile \
+docker build -f ci/Dockerfile.nutredis \
    --tag $DOCKER_TAG \
    --build-arg=REDIS_VER=$REDIS_VER \
    .
@@ -45,7 +45,7 @@ if ! docker run \
 fi
 
 # Run nose tests
-# NOTE: It was never possible to reload nutcracker configs (in any nutcracker version so far) with SIGUSR1 so test_system.test_reload has always been skipped.
+# NOTE: It was never possible to reload nutredis configs (in any nutredis version so far) with SIGUSR1 so test_system.test_reload has always been skipped.
 docker run \
    --rm \
    -e REDIS_VER=$REDIS_VER \
