@@ -210,6 +210,7 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
         if (pmsg->heartbeat) {
             /* This is the response of a heartbeat message - put the server in state FAIL_STATUS_NORMAL to indicate that this should be used instead of the failover pool */
             struct conn *c_conn;
+            ASSERT(conn->sent_heartbeat);
 
             c_conn = pmsg->owner;
             server_restore_from_heartbeat(server, c_conn);

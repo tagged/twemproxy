@@ -26,6 +26,9 @@
 	  Don't bother computing hash or looking up in distribution when a pool
 	  has only one server - the result will always be the same (tyson)
 	  Fix parsing bug when a redis error body contains no spaces (tyson)
+	  Ignore server_failure_limit and treat it as if it's always 1 - the heartbeat
+	  patch is responsible for reconnecting after a server failure.
+	  Don't send more than one heartbeat request when reconnecting to a server.
 
 2016-04-27  Misha Nasledov <misha@nasledov.com>
     * twemproxy: version 0.5.1 release

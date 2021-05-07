@@ -32,6 +32,8 @@ Failures are a fact of life, especially when things are distributed. To be resil
       server_retry_timeout: 30000
       server_failure_limit: 3
 
+NOTE: server_failure_limit is ignored with the heartbeat patch.
+
 Enabling `auto_eject_hosts:` ensures that a dead server can be ejected out of the hash ring after `server_failure_limit:` consecutive failures have been encountered on that said server. A non-zero `server_retry_timeout:` ensures that we don't incorrectly mark a server as dead forever especially when the failures were really transient. The combination of `server_retry_timeout:` and `server_failure_limit:` controls the tradeoff between resiliency to permanent and transient failures.
 
 - **NOTE: The heartbeat patch changes this behavior from the upstream for pools configured with `auto_eject_hosts: true`.** See [heartbeat.md](./heartbeat.md)

@@ -353,9 +353,8 @@ server_failure(struct context *ctx, struct server *server)
         return;
     }
 
-    log_debug(LOG_VERB, "server '%.*s' failure count %"PRIu32" limit %"PRIu32,
-              server->pname.len, server->pname.data, server->failure_count,
-              pool->server_failure_limit);
+    log_debug(LOG_VERB, "server '%.*s' failure count %"PRIu32,
+              server->pname.len, server->pname.data, server->failure_count);
 
     now = nc_usec_now();
     if (now < 0) {
@@ -369,10 +368,6 @@ server_failure(struct context *ctx, struct server *server)
 
     if (is_reconnect) {
         add_failed_server(ctx, server);
-        return;
-    }
-
-    if (server->failure_count < pool->server_failure_limit) {
         return;
     }
 
@@ -921,13 +916,12 @@ server_pool_server(struct server_pool *pool, uint8_t *key, uint32_t keylen)
 /*
  * Returns a connection or null to forward the given key to. This will recursively choose a failover pool.
  */
-struct server *
+static struct server *
 server_pool_conn_failover(struct server_pool *failover, uint8_t *key,
                           uint32_t keylen)
 {
     /* Fallback to the failover pool */
     struct server *server = NULL;
-    rstatus_t status;
 
     if (failover == NULL) {
         return NULL;
@@ -1252,6 +1246,7 @@ set_heartbeat_command(struct mbuf *mbuf, int redis)
 }
 
 /* Send a heartbeat command to a backend server. See notes/heartbeat.md. */
+/* Precondition: server->fail != FAIL_STATUS_NORMAL */
 static rstatus_t
 send_heartbeat(struct context *ctx, struct conn *conn, struct server *server)
 {
@@ -1261,6 +1256,16 @@ send_heartbeat(struct context *ctx, struct conn *conn, struct server *server)
     struct server_pool *pool;
     struct conn *c_conn;
     rstatus_t status;
+
+    if (conn->sent_heartbeat) {
+        // Don't send more than one heartbeat over the same connection to a server.
+        // - If there is a timeout waiting for the full response, this will reconnect.
+        // - If it sends a response that is well-formed, the server will be marked as healthy
+        // - If it sends a malformed response, the connection will be closed and treated as unhealthy.
+        return NC_OK;
+    }
+    log_debug(LOG_INFO, "send heartbeat request to server sd %d of %.*s", conn->sd, server->name.len, server->name.data);
+    conn->sent_heartbeat = 1;
 
     pool = (struct server_pool *)(server->owner);
 
@@ -1357,6 +1362,15 @@ add_failed_server(struct context *ctx, struct server *server)
     struct server **pserver;
 
     server->fail = FAIL_STATUS_ERR_TRY_CONNECT;
+    for (uint32_t i = 0; i < array_n(ctx->fails); i++) {
+        struct server *other = *(struct server **)array_get(ctx->fails, i);
+        if (other == server) {
+            log_debug(LOG_INFO, "Filtering out redundant attempt to reconnect to server %.*s in pool %.*s",
+                    server->name.len, server->name.data, server->owner->name.len, server->owner->name.data);
+            /* Don't add a server to fails if it's already in the array */
+            return;
+        }
+    }
     pserver = (struct server **)array_push(ctx->fails);
     *pserver = server;
 }

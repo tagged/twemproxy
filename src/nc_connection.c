@@ -158,6 +158,7 @@ _conn_get(void)
     conn->done = 0;
     conn->redis = 0;
     conn->authenticated = 0;
+    conn->sent_heartbeat = 0;
 
     conn->status = CONN_DISCONNECTED;
 
