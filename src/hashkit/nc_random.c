@@ -65,7 +65,7 @@ random_update(struct server_pool *pool)
 
         return NC_OK;
     }
-    log_debug(LOG_DEBUG, "%"PRIu32" of %"PRIu32" servers are live for pool "
+    log_debug(LOG_NOTICE, "random_update: %"PRIu32" of %"PRIu32" servers are live for pool "
               "%"PRIu32" '%.*s'", nlive_server, nserver, pool->idx,
               pool->name.len, pool->name.data);
 
