@@ -30,11 +30,30 @@ docker build -f ci/Dockerfile \
    --build-arg=REDIS_VER=$REDIS_VER \
    .
 
+# Run c unit tests
+UNIT_TEST_FAIL=no
+if ! docker run \
+   --rm \
+   -e REDIS_VER=$REDIS_VER \
+   --workdir=/usr/src/twemproxy/src \
+   --name=$DOCKER_IMG_NAME \
+   --entrypoint=/bin/sh \
+   $DOCKER_TAG \
+   -c 'make test_all && ./test_all'; then
+
+    UNIT_TEST_FAIL=yes
+fi
+
 # Run nose tests
-# TODO: test_system for reloading nutcracker config is failing
+# NOTE: It was never possible to reload nutcracker configs (in any nutcracker version so far) with SIGUSR1 so test_system.test_reload has always been skipped.
 docker run \
    --rm \
    -e REDIS_VER=$REDIS_VER \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   nosetests -v test_memcache
+   nosetests -v test_redis test_memcache test_system.test_sentinel
+
+if [ $UNIT_TEST_FAIL = yes ]; then
+    echo "See earlier output, unit tests failed" 1>&2
+    exit 1
+fi

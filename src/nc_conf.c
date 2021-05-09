@@ -110,6 +110,10 @@ static struct command conf_commands[] = {
       conf_add_server,
       offsetof(struct conf_pool, server) },
 
+    { string("failover"),
+      conf_set_string,
+      offsetof(struct conf_pool, failover_name) },
+
     { string("sentinels"),
       conf_add_server,
       offsetof(struct conf_pool, sentinel) },
@@ -172,6 +176,7 @@ conf_server_each_transform(void *elem, void *data)
 
     s->next_retry = 0LL;
     s->failure_count = 0;
+    s->fail = FAIL_STATUS_NORMAL;
 
     /* proxy will set sentinel flag after server transform */
     s->sentinel = 0;
@@ -218,6 +223,8 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
 
     cp->valid = 0;
 
+    string_init(&cp->failover_name);
+
     status = string_duplicate(&cp->name, name);
     if (status != NC_OK) {
         return status;
@@ -259,6 +266,8 @@ conf_pool_deinit(struct conf_pool *cp)
         conf_server_deinit(array_pop(&cp->server));
     }
     array_deinit(&cp->server);
+
+    string_deinit(&cp->failover_name);
 
     log_debug(LOG_VVERB, "deinit conf pool %p", cp);
 }
@@ -322,6 +331,9 @@ conf_pool_each_transform(void *elem, void *data)
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
 
+    sp->failover_name = cp->failover_name;
+    sp->failover = NULL;
+
     status = server_init(&sp->server, &cp->server, sp, false);
     if (status != NC_OK) {
         return status;
@@ -354,7 +366,7 @@ conf_dump(struct conf *cf)
               cf->fname);
 
     for (i = 0; i < npool; i++) {
-        cp = array_get(&cf->pool, i);
+        cp = array_get_known_type(&cf->pool, i, struct conf_pool);
 
         log_debug(LOG_VVERB, "%.*s", cp->name.len, cp->name.data);
         log_debug(LOG_VVERB, "  listen: %.*s",
@@ -376,12 +388,17 @@ conf_dump(struct conf *cf)
                   cp->server_retry_timeout);
         log_debug(LOG_VVERB, "  server_failure_limit: %d",
                   cp->server_failure_limit);
+        if (cp->failover_name.len != 0) {
+          log_debug(LOG_VVERB, "  failover: \"%.*s\"", cp->failover_name.len, cp->failover_name.data);
+        } else {
+          log_debug(LOG_VVERB, "  no failover");
+        }
 
         nserver = array_n(&cp->server);
         log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
 
         for (j = 0; j < nserver; j++) {
-            s = array_get(&cp->server, j);
+            s = &array_get_known_type(&cp->server, j, struct conf_server)->pname;
             log_debug(LOG_VVERB, "    %.*s", s->len, s->data);
         }
 
@@ -390,12 +407,15 @@ conf_dump(struct conf *cf)
             log_debug(LOG_VVERB, "  sentinels: %"PRIu32"", nserver);
 
             for (j = 0; j < nserver; j++) {
-                s = array_get(&cp->sentinel, j);
+                s = &array_get_known_type(&cp->sentinel, j, struct conf_server)->pname;
                 log_debug(LOG_VVERB, "    %.*s", s->len, s->data);
             }
         }
     }
 }
+
+static rstatus_t
+conf_write(FILE *fh, const char *fmt, ...) NC_ATTRIBUTE_FORMAT(printf, 2, 3);
 
 static rstatus_t
 conf_write(FILE *fh, const char *fmt, ...)
@@ -421,6 +441,7 @@ conf_write(FILE *fh, const char *fmt, ...)
     return NC_OK;
 }
 
+#define conf_write_or_fail(...) if (conf_write(__VA_ARGS__) != NC_OK) { goto error; }
 void
 conf_rewrite(struct context *ctx)
 {
@@ -455,70 +476,70 @@ conf_rewrite(struct context *ctx)
     string_set_text(&false_str, "false");
 
     for (i = 0; i < npool; i++) {
-        cp = array_get(&cf->pool, i);
+        cp = array_get_known_type(&cf->pool, i, struct conf_pool);
 
-        conf_write(fh, "%.*s:", cp->name.len, cp->name.data);
-        conf_write(fh, "  listen: %.*s",
+        conf_write_or_fail(fh, "%.*s:", cp->name.len, cp->name.data);
+        conf_write_or_fail(fh, "  listen: %.*s",
                   cp->listen.pname.len, cp->listen.pname.data);
-        conf_write(fh, "  hash: %.*s",
+        conf_write_or_fail(fh, "  hash: %.*s",
                 hash_strings[cp->hash].len, hash_strings[cp->hash].data);
         if (cp->hash_tag.len > 0) {
-            conf_write(fh, "  hash_tag: \"%.*s\"", cp->hash_tag.len,
+            conf_write_or_fail(fh, "  hash_tag: \"%.*s\"", cp->hash_tag.len,
                     cp->hash_tag.data);
         }
-        conf_write(fh, "  distribution: %.*s",
+        conf_write_or_fail(fh, "  distribution: %.*s",
                 dist_strings[cp->distribution].len, dist_strings[cp->distribution].data);
 
         bool_str = cp->preconnect ? true_str : false_str;
-        conf_write(fh,"  preconnect: %.*s", bool_str.len, bool_str.data);
+        conf_write_or_fail(fh,"  preconnect: %.*s", bool_str.len, bool_str.data);
 
         bool_str = cp->auto_eject_hosts ? true_str : false_str;
-        conf_write(fh, "  auto_eject_hosts: %.*s", bool_str.len, bool_str.data);
+        conf_write_or_fail(fh, "  auto_eject_hosts: %.*s", bool_str.len, bool_str.data);
 
         bool_str = cp->redis ? true_str : false_str;
-        conf_write(fh, "  redis: %.*s", bool_str.len, bool_str.data);
+        conf_write_or_fail(fh, "  redis: %.*s", bool_str.len, bool_str.data);
         if (cp->timeout >= 0) {
-            conf_write(fh, "  timeout: %d", cp->timeout);
+            conf_write_or_fail(fh, "  timeout: %d", cp->timeout);
         }
-        conf_write(fh, "  backlog: %d", cp->backlog);
-        conf_write(fh, "  client_connections: %d",
+        conf_write_or_fail(fh, "  backlog: %d", cp->backlog);
+        conf_write_or_fail(fh, "  client_connections: %d",
                   cp->client_connections);
-        conf_write(fh, "  server_connections: %d",
+        conf_write_or_fail(fh, "  server_connections: %d",
                   cp->server_connections);
-        conf_write(fh, "  server_retry_timeout: %d",
+        conf_write_or_fail(fh, "  server_retry_timeout: %d",
                   cp->server_retry_timeout);
-        conf_write(fh, "  server_failure_limit: %d",
+        conf_write_or_fail(fh, "  server_failure_limit: %d",
                   cp->server_failure_limit);
 
         nserver = array_n(&cp->server);
-        conf_write(fh, "  servers:");
+        conf_write_or_fail(fh, "  servers:");
 
         for (j = 0; j < nserver; j++) {
-            cs = array_get(&cp->server, j);
+            cs = array_get_known_type(&cp->server, j, struct conf_server);
             if (cs->name.len >= cs->pname.len
                     || nc_strncmp(cs->pname.data, cs->name.data, cs->name.len)) {
-                conf_write(fh, "   - %.*s %.*s",
+                conf_write_or_fail(fh, "   - %.*s %.*s",
                         cs->pname.len, cs->pname.data,
                         cs->name.len, cs->name.data);
             } else {
-                conf_write(fh, "   - %.*s",
+                conf_write_or_fail(fh, "   - %.*s",
                         cs->pname.len, cs->pname.data);
             }
         }
 
         nserver = array_n(&cp->sentinel);
         if (nserver) {
-            conf_write(fh, "  sentinels:");
+            conf_write_or_fail(fh, "  sentinels:");
 
             for (j = 0; j < nserver; j++) {
-                cs = array_get(&cp->sentinel, j);
+                cs = array_get_known_type(&cp->sentinel, j, struct conf_server);
                 if (cs->name.len >= cs->pname.len
                         || nc_strncmp(cs->pname.data, cs->name.data, cs->name.len)) {
-                    conf_write(fh, "   - %.*s %.*s",
+                    conf_write_or_fail(fh, "   - %.*s %.*s",
                             cs->pname.len, cs->pname.data,
                             cs->name.len, cs->name.data);
                 } else {
-                    conf_write(fh, "   - %.*s",
+                    conf_write_or_fail(fh, "   - %.*s",
                             cs->pname.len, cs->pname.data);
                 }
             }
@@ -526,7 +547,7 @@ conf_rewrite(struct context *ctx)
 
         /* write a empty line to conf when a pool is writen except the last one. */
         if (i < npool - 1) {
-            conf_write(fh, "");
+            conf_write_or_fail(fh, "");
         }
     }
 
@@ -537,6 +558,14 @@ conf_rewrite(struct context *ctx)
                   temp_conf_file, cf->fname, strerror(errno));
         unlink(temp_conf_file);
     }
+
+    return;
+
+error:
+    fclose(fh);
+    log_error("conf: failed to save full configuration file '%s': %s",
+              temp_conf_file, strerror(errno));
+    unlink(temp_conf_file);
 }
 
 static rstatus_t
@@ -684,8 +713,8 @@ conf_handler(struct conf *cf, void *data)
     }
 
     narg = array_n(&cf->arg);
-    value = array_get(&cf->arg, narg - 1);
-    key = array_get(&cf->arg, narg - 2);
+    value = array_get_known_type(&cf->arg, narg - 1, struct string);
+    key = array_get_known_type(&cf->arg, narg - 2, struct string);
 
     log_debug(LOG_VVERB, "conf handler on %.*s: %.*s", key->len, key->data,
               value->len, value->data);
@@ -1317,6 +1346,14 @@ conf_pre_validate(struct conf *cf)
 }
 
 static int
+conf_server_pname_cmp(const void *t1, const void *t2)
+{
+    const struct conf_server *s1 = t1, *s2 = t2;
+
+    return string_compare(&s1->pname, &s2->pname);
+}
+
+static int
 conf_server_name_cmp(const void *t1, const void *t2)
 {
     const struct conf_server *s1 = t1, *s2 = t2;
@@ -1412,7 +1449,7 @@ conf_validate_sentinel(struct conf *cf, struct conf_pool *cp)
 
         if (string_compare(&cs1->name, &cs2->name) == 0) {
             log_error("conf: pool '%.*s' has sentinels with same name '%.*s'",
-                      cp->name.len, cp->name.data, cs1->name.len, 
+                      cp->name.len, cp->name.data, cs1->name.len,
                       cs1->name.data);
             valid = false;
             break;
@@ -1525,7 +1562,7 @@ conf_post_validate(struct conf *cf)
 
     npool = array_n(&cf->pool);
     if (npool == 0) {
-        log_error("conf: '%.*s' has no pools", cf->fname);
+        log_error("conf: '%s' has no pools", cf->fname);
         return NC_ERROR;
     }
 
@@ -1703,6 +1740,7 @@ conf_set_listen(struct conf *cf, struct command *cmd, void *conf)
             /* no permissions field, so use defaults */
             name = value->data;
             namelen = value->len;
+            field->perm = (mode_t)0;
         } else {
             perm = q + 1;
             permlen = (uint32_t)(p - perm + 1);

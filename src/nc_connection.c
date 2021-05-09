@@ -197,6 +197,7 @@ conn_get(void *owner, bool client, bool redis)
 
         conn->close = client_close;
         conn->active = client_active;
+        conn->restore = client_restore;
 
         conn->ref = client_ref;
         conn->unref = client_unref;
@@ -234,6 +235,7 @@ conn_get(void *owner, bool client, bool redis)
             conn->close = server_close;
         }
         conn->active = server_active;
+        conn->restore = server_restore;
 
         conn->ref = server_ref;
         conn->unref = server_unref;
@@ -282,6 +284,7 @@ conn_get_proxy(void *owner)
 
     conn->close = proxy_close;
     conn->active = NULL;
+    conn->restore = proxy_restore;
 
     conn->ref = proxy_ref;
     conn->unref = proxy_unref;

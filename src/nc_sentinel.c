@@ -135,7 +135,8 @@ static rstatus_t
 sentinel_proc_sentinel_info(struct context *ctx, struct server *sentinel, struct msg *msg)
 {
     rstatus_t status;
-    int i, master_num, switch_num, server_port;
+    /* XXX parsing assumes sentinel masters response is before the sentinel data, which is currently true */
+    int i, master_num = 0, switch_num, server_port;
     struct string server_name;
     struct string server_ip;
     struct string const_sentinel_masters_prefix;
@@ -449,6 +450,7 @@ sentinel_proc_pub(struct context *ctx, struct server *sentinel, struct msg *msg)
     msg_read_line(msg, line_buf, 3);
     if (mbuf_length(line_buf) == 0) {
         log_error("read line failed from sentinel pmessage when skip line not used.");
+        msg_dump(msg, LOG_INFO);
         goto error;
     }
     status = mbuf_read_string(line_buf, CR, &tmp_string);
@@ -503,7 +505,7 @@ sentinel_proc_pub(struct context *ctx, struct server *sentinel, struct msg *msg)
     }
     server_port = nc_atoi(tmp_string.data, tmp_string.len);
     if (server_port < 0) {
-        log_error("tanslate server port string to int failed.");
+        log_error("translate server port string to int failed.");
         goto error;
     }
 
@@ -540,6 +542,18 @@ sentinel_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
     ASSERT(msg->owner == conn);
     ASSERT(nmsg == NULL || !nmsg->request);
     ASSERT(conn->status != CONN_DISCONNECTED);
+
+    // TODO: Figure out why there are empty sentinel messages.
+    // When there are empty sentinel messages, nutcracker will mark the sentinel as being in an error state and close the connection.
+    // (This may be deliberate, filtering out empty messages results in test failures)
+    /*
+    if (msg_empty(msg)) {
+        log_debug(LOG_VERB, "saw empty rsp %"PRIu64" on sentinel %d", msg->id,
+                  conn->sd);
+        // rsp_put(msg);
+        // return true;
+    }
+    */
 
     /* enqueue next message (response), if any */
     conn->rmsg = nmsg;

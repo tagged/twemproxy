@@ -26,6 +26,12 @@ A quick checklist:
 + Use CFLAGS="-O3 -fno-strict-aliasing" ./configure && make
 + `autoreconf -fvi && ./configure` needs `automake` and `libtool` to be installed
 
+## Testing
+
+See [tests/README.rst](tests/README.rst) for the more extensive integration tests written in python and nosetests.
+
+If you want to unit test a C function, see the unit tests in the `src` folder. A tiny number of test cases exist that can be run with `make check` (`test_all.c`).
+
 ## Features
 
 + Fast.
@@ -91,9 +97,9 @@ Twemproxy can be configured through a YAML file specified by the -c or --conf-fi
  + jenkins
 + **hash_tag**: A two character string that specifies the part of the key used for hashing. Eg "{}" or "$$". [Hash tag](notes/recommendation.md#hash-tags) enable mapping different keys to the same server as long as the part of the key within the tag is the same.
 + **distribution**: The key distribution mode. Possible values are:
- + ketama
- + modula
- + random
+ + ketama (default, recommended. An implementation of https://en.wikipedia.org/wiki/Consistent_hashing)
+ + modula (use hash modulo number of servers to choose the backend)
+ + random (choose a random backend)
 + **timeout**: The timeout value in msec that we wait for to establish a connection to the server or receive a response from a server. By default, we wait indefinitely.
 + **backlog**: The TCP backlog argument. Defaults to 512.
 + **preconnect**: A boolean value that controls if twemproxy should preconnect to all the servers in this pool on process start. Defaults to false.
@@ -105,7 +111,8 @@ Twemproxy can be configured through a YAML file specified by the -c or --conf-fi
 + **server_retry_timeout**: The timeout value in msec to wait for before retrying on a temporarily ejected server, when auto_eject_host is set to true. Defaults to 30000 msec.
 + **server_failure_limit**: The number of consecutive failures on a server that would lead to it being temporarily ejected when auto_eject_host is set to true. Defaults to 2.
 + **servers**: A list of server address, port and weight (name:port:weight or ip:port:weight) for this server pool.
-+ **sentinels**: A list of redis sentinel address, port and weight (name:port:weight or ip:port:weight) for this server pool. Weight of sentinel is not used.
++ **sentinels**: A list of redis sentinel address, port and weight (name:port:weight or ip:port:weight) for this server pool. Weight of sentinel is not used. If this setting is used, twemproxy will attempt to overwrite its config file when sentinels notify twemproxy that a redis server has failed over to a different server.
++ **failover**: The name of a pool to use instead when a host for a key in this pool is down. This is intended for use with memcache and `auto_eject_hosts: false`. See [notes/failover.md](notes/failover.md) for details
 
 
 For example, the configuration file in [conf/nutcracker.yml](conf/nutcracker.yml), also shown below, configures 5 server pools with names - _alpha_, _beta_, _gamma_, _delta_ and omega. Clients that intend to send requests to one of the 10 servers in pool delta connect to port 22124 on 127.0.0.1. Clients that intend to send request to one of 2 servers in pool omega connect to unix path /tmp/gamma. Requests sent to pool alpha and omega have no timeout and might require timeout functionality to be implemented on the client side. On the other hand, requests sent to pool beta, gamma and delta timeout after 400 msec, 400 msec and 100 msec respectively when no response is received from the server. Of the 5 server pools, only pools alpha, gamma and delta are configured to use server ejection and hence are resilient to server failures. All the 5 server pools use ketama consistent hashing for key distribution with the key hasher for pools alpha, beta, gamma and delta set to fnv1a_64 while that for pool omega set to hsieh. Also only pool beta uses [nodes names](notes/recommendation.md#node-names-for-consistent-hashing) for consistent hashing, while pool alpha, gamma, delta and omega use 'host:port:weight' for consistent hashing. Finally, pool alpha, beta and sigma can speak the redis protocol, while pool gamma, deta and omega speak memcached protocol.

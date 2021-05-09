@@ -15,9 +15,9 @@ def test_msetnx():
     r = getconn()
 
     # https://redis.io/commands/msetnx
-    # MSETNX not supported when sharded?
+    # MSETNX is not supported because the keys can get sent to different backends, which is not supported.
     normalized_kv = {str(key, encoding='utf-8'): val for key, val in default_kv.items()}
-    assert_fail('Socket closed|Connection closed', r.msetnx,**normalized_kv)
+    assert_fail('Socket closed|Connection closed', r.msetnx, normalized_kv)
 
 def test_null_key():
     r = getconn()
@@ -28,7 +28,7 @@ def test_null_key():
     assert_equal(b'', r.get(''))
 
     kv = {'' : 'val', 'k': 'v'}
-    ret = r.mset(**kv)
+    ret = r.mset(kv)
     assert_equal(b'val', r.get(''))
 
 def test_ping_quit():
@@ -139,6 +139,8 @@ def test_issue_323():
     # do on twemproxy
     c = getconn()
     assert_equal([1, b'OK'], c.eval("return {1, redis.call('set', 'x', '1')}", 1, 'tmp'))
+
+    assert_equal([[[[[[[[[[[[[[[[[[[[b'value']]]]]]]]]]]]]]]]]]], b'other'], c.eval("return {{{{{{{{{{{{{{{{{{{{'value'}}}}}}}}}}}}}}}}}}}, 'other'}", 1, 'tmp'))
 
 def setup_and_wait():
     time.sleep(60*60)

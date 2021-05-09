@@ -43,8 +43,10 @@ static bool
 redis_argz(struct msg *r)
 {
     switch (r->type) {
+    /* TODO: PING has an optional argument, emulate that? */
     case MSG_REQ_REDIS_PING:
     case MSG_REQ_REDIS_QUIT:
+    case MSG_REQ_REDIS_COMMAND:
         return true;
 
     default:
@@ -62,7 +64,6 @@ static bool
 redis_arg0(struct msg *r)
 {
     switch (r->type) {
-    case MSG_REQ_REDIS_EXISTS:
     case MSG_REQ_REDIS_PERSIST:
     case MSG_REQ_REDIS_PTTL:
     case MSG_REQ_REDIS_TTL:
@@ -71,6 +72,7 @@ redis_arg0(struct msg *r)
 
     case MSG_REQ_REDIS_DECR:
     case MSG_REQ_REDIS_GET:
+    case MSG_REQ_REDIS_GETDEL:
     case MSG_REQ_REDIS_INCR:
     case MSG_REQ_REDIS_STRLEN:
 
@@ -80,14 +82,12 @@ redis_arg0(struct msg *r)
     case MSG_REQ_REDIS_HVALS:
 
     case MSG_REQ_REDIS_LLEN:
-    case MSG_REQ_REDIS_LPOP:
-    case MSG_REQ_REDIS_RPOP:
 
     case MSG_REQ_REDIS_SCARD:
     case MSG_REQ_REDIS_SMEMBERS:
 
     case MSG_REQ_REDIS_ZCARD:
-    case MSG_REQ_REDIS_PFCOUNT:
+        /* TODO: Support emulating 2-arg username+password auth by just checking password? */
     case MSG_REQ_REDIS_AUTH:
         return true;
 
@@ -110,6 +110,7 @@ redis_arg1(struct msg *r)
     case MSG_REQ_REDIS_EXPIREAT:
     case MSG_REQ_REDIS_PEXPIRE:
     case MSG_REQ_REDIS_PEXPIREAT:
+    case MSG_REQ_REDIS_MOVE:
 
     case MSG_REQ_REDIS_APPEND:
     case MSG_REQ_REDIS_DECRBY:
@@ -121,11 +122,10 @@ redis_arg1(struct msg *r)
 
     case MSG_REQ_REDIS_HEXISTS:
     case MSG_REQ_REDIS_HGET:
+    case MSG_REQ_REDIS_HSTRLEN:
 
     case MSG_REQ_REDIS_LINDEX:
-    case MSG_REQ_REDIS_LPUSHX:
     case MSG_REQ_REDIS_RPOPLPUSH:
-    case MSG_REQ_REDIS_RPUSHX:
 
     case MSG_REQ_REDIS_SISMEMBER:
 
@@ -157,7 +157,6 @@ redis_arg2(struct msg *r)
 
     case MSG_REQ_REDIS_HINCRBY:
     case MSG_REQ_REDIS_HINCRBYFLOAT:
-    case MSG_REQ_REDIS_HSET:
     case MSG_REQ_REDIS_HSETNX:
 
     case MSG_REQ_REDIS_LRANGE:
@@ -166,6 +165,9 @@ redis_arg2(struct msg *r)
     case MSG_REQ_REDIS_LTRIM:
 
     case MSG_REQ_REDIS_SMOVE:
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
+    case MSG_REQ_REDIS_BRPOPLPUSH:
+#endif
 
     case MSG_REQ_REDIS_ZCOUNT:
     case MSG_REQ_REDIS_ZLEXCOUNT:
@@ -173,8 +175,6 @@ redis_arg2(struct msg *r)
     case MSG_REQ_REDIS_ZREMRANGEBYLEX:
     case MSG_REQ_REDIS_ZREMRANGEBYRANK:
     case MSG_REQ_REDIS_ZREMRANGEBYSCORE:
-
-    case MSG_REQ_REDIS_RESTORE:
         return true;
 
     default:
@@ -193,6 +193,7 @@ redis_arg3(struct msg *r)
 {
     switch (r->type) {
     case MSG_REQ_REDIS_LINSERT:
+    case MSG_REQ_REDIS_LMOVE:
         return true;
 
     default:
@@ -203,7 +204,7 @@ redis_arg3(struct msg *r)
 }
 
 /*
- * Return true, if the redis command accepts 0 or more arguments, otherwise
+ * Return true, if the redis command operates on one key and accepts 0 or more arguments, otherwise
  * return false
  */
 static bool
@@ -211,18 +212,35 @@ redis_argn(struct msg *r)
 {
     switch (r->type) {
     case MSG_REQ_REDIS_SORT:
+    case MSG_REQ_REDIS_COPY:
 
     case MSG_REQ_REDIS_BITCOUNT:
     case MSG_REQ_REDIS_BITPOS:
+    case MSG_REQ_REDIS_BITFIELD:
+        /* TODO: Support REDIS_BITOP operation destkey key ... and add tests - this requires handling key in a position other than the first one */
 
+    case MSG_REQ_REDIS_EXISTS:
+    case MSG_REQ_REDIS_GETEX:
     case MSG_REQ_REDIS_SET:
+
     case MSG_REQ_REDIS_HDEL:
     case MSG_REQ_REDIS_HMGET:
     case MSG_REQ_REDIS_HMSET:
     case MSG_REQ_REDIS_HSCAN:
+    case MSG_REQ_REDIS_HSET:
+    case MSG_REQ_REDIS_HRANDFIELD:
 
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
+    case MSG_REQ_REDIS_BLPOP:
+    case MSG_REQ_REDIS_BRPOP:
+#endif
     case MSG_REQ_REDIS_LPUSH:
+    case MSG_REQ_REDIS_LPUSHX:
     case MSG_REQ_REDIS_RPUSH:
+    case MSG_REQ_REDIS_RPUSHX:
+    case MSG_REQ_REDIS_LPOP:
+    case MSG_REQ_REDIS_RPOP:
+    case MSG_REQ_REDIS_LPOS:
 
     case MSG_REQ_REDIS_SADD:
     case MSG_REQ_REDIS_SDIFF:
@@ -235,20 +253,48 @@ redis_argn(struct msg *r)
     case MSG_REQ_REDIS_SRANDMEMBER:
     case MSG_REQ_REDIS_SSCAN:
     case MSG_REQ_REDIS_SPOP:
+    case MSG_REQ_REDIS_SMISMEMBER:
 
     case MSG_REQ_REDIS_PFADD:
     case MSG_REQ_REDIS_PFMERGE:
+    case MSG_REQ_REDIS_PFCOUNT:
+
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
+    case MSG_REQ_REDIS_BZPOPMAX:
+    case MSG_REQ_REDIS_BZPOPMIN:
+#endif
 
     case MSG_REQ_REDIS_ZADD:
+    case MSG_REQ_REDIS_ZDIFF:
+    case MSG_REQ_REDIS_ZDIFFSTORE:
+    case MSG_REQ_REDIS_ZINTER:
     case MSG_REQ_REDIS_ZINTERSTORE:
+    case MSG_REQ_REDIS_ZMSCORE:
+    case MSG_REQ_REDIS_ZPOPMAX:
+    case MSG_REQ_REDIS_ZPOPMIN:
+    case MSG_REQ_REDIS_ZRANDMEMBER:
     case MSG_REQ_REDIS_ZRANGE:
+    case MSG_REQ_REDIS_ZRANGEBYLEX:
     case MSG_REQ_REDIS_ZRANGEBYSCORE:
+    case MSG_REQ_REDIS_ZRANGESTORE:
     case MSG_REQ_REDIS_ZREM:
     case MSG_REQ_REDIS_ZREVRANGE:
-    case MSG_REQ_REDIS_ZRANGEBYLEX:
+    case MSG_REQ_REDIS_ZREVRANGEBYLEX:
     case MSG_REQ_REDIS_ZREVRANGEBYSCORE:
-    case MSG_REQ_REDIS_ZUNIONSTORE:
     case MSG_REQ_REDIS_ZSCAN:
+    case MSG_REQ_REDIS_ZUNION:
+    case MSG_REQ_REDIS_ZUNIONSTORE:
+
+    case MSG_REQ_REDIS_GEODIST:
+    case MSG_REQ_REDIS_GEOPOS:
+    case MSG_REQ_REDIS_GEOHASH:
+    case MSG_REQ_REDIS_GEOADD:
+    case MSG_REQ_REDIS_GEORADIUS:
+    case MSG_REQ_REDIS_GEORADIUSBYMEMBER:
+    case MSG_REQ_REDIS_GEOSEARCH:
+    case MSG_REQ_REDIS_GEOSEARCHSTORE:
+
+    case MSG_REQ_REDIS_RESTORE:
         return true;
 
     default:
@@ -268,6 +314,8 @@ redis_argx(struct msg *r)
     switch (r->type) {
     case MSG_REQ_REDIS_MGET:
     case MSG_REQ_REDIS_DEL:
+    case MSG_REQ_REDIS_UNLINK:
+    case MSG_REQ_REDIS_TOUCH:
         return true;
 
     default:
@@ -316,6 +364,20 @@ redis_argeval(struct msg *r)
     return false;
 }
 
+static bool
+redis_nokey(struct msg *r)
+{
+    switch (r->type) {
+    case MSG_REQ_REDIS_LOLWUT:
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
 /*
  * Return true, if the redis response is an error response i.e. a simple
  * string whose first character is '-', otherwise return false.
@@ -345,6 +407,21 @@ redis_error(struct msg *r)
     }
 
     return false;
+}
+
+// Set a placeholder key for a command with no key that is forwarded to an arbitrary backend.
+static bool
+set_placeholder_key(struct msg *r)
+{
+    struct keypos *kpos;
+    ASSERT(array_n(r->keys) == 0);
+    kpos = array_push(r->keys);
+    if (kpos == NULL) {
+        return false;
+    }
+    kpos->start = (uint8_t *)"placeholder";
+    kpos->end = kpos->start + sizeof("placeholder") - 1;
+    return true;
 }
 
 /*
@@ -426,17 +503,23 @@ redis_parse_req(struct msg *r)
         switch (state) {
 
         case SW_START:
+            ASSERT(r->token == NULL);
+            if (ch != '*') {
+                /* redis commands are always arrays */
+                goto error;
+            }
+            r->token = p;
+            /* req_start <- p */
+            r->narg_start = p;
+            r->rnarg = 0;
+            state = SW_NARG;
+
+            break;
+
         case SW_NARG:
-            if (r->token == NULL) {
-                if (ch != '*') {
-                    goto error;
-                }
-                r->token = p;
-                /* req_start <- p */
-                r->narg_start = p;
-                r->rnarg = 0;
-                state = SW_NARG;
-            } else if (isdigit(ch)) {
+            /* SW_NARG: The number of arguments in the redis command array */
+            ASSERT(r->token != NULL);
+            if (isdigit(ch)) {
                 r->rnarg = r->rnarg * 10 + (uint32_t)(ch - '0');
             } else if (ch == CR) {
                 if (r->rnarg == 0) {
@@ -596,6 +679,11 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str4icmp(m, 'l', 'p', 'o', 's')) {
+                    r->type = MSG_REQ_REDIS_LPOS;
+                    break;
+                }
+
                 if (str4icmp(m, 'l', 'r', 'e', 'm')) {
                     r->type = MSG_REQ_REDIS_LREM;
                     break;
@@ -678,6 +766,17 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str4icmp(m, 'm', 'o', 'v', 'e')) {
+                    r->type = MSG_REQ_REDIS_MOVE;
+                    r->noforward = 1;
+                    break;
+                }
+
+                if (str4icmp(m, 'c', 'o', 'p', 'y')) {
+                    r->type = MSG_REQ_REDIS_COPY;
+                    break;
+                }
+
                 break;
 
             case 5:
@@ -756,6 +855,11 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str5icmp(m, 'z', 'd', 'i', 'f', 'f')) {
+                    r->type = MSG_REQ_REDIS_ZDIFF;
+                    break;
+                }
+
                 if (str5icmp(m, 'z', 'r', 'a', 'n', 'k')) {
                     r->type = MSG_REQ_REDIS_ZRANK;
                     break;
@@ -770,6 +874,33 @@ redis_parse_req(struct msg *r)
                     r->type = MSG_REQ_REDIS_PFADD;
                     break;
                 }
+
+                if (str5icmp(m, 'g', 'e', 't', 'e', 'x')) {
+                    r->type = MSG_REQ_REDIS_GETEX;
+                    break;
+                }
+
+                if (str5icmp(m, 't', 'o', 'u', 'c', 'h')) {
+                    r->type = MSG_REQ_REDIS_TOUCH;
+                    break;
+                }
+
+                if (str5icmp(m, 'l', 'm', 'o', 'v', 'e')) {
+                    r->type = MSG_REQ_REDIS_LMOVE;
+                    break;
+                }
+
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
+                if (str5icmp(m, 'b', 'l', 'p', 'o', 'p')) {
+                    r->type = MSG_REQ_REDIS_BLPOP;
+                    break;
+                }
+
+                if (str5icmp(m, 'b', 'r', 'p', 'o', 'p')) {
+                    r->type = MSG_REQ_REDIS_BRPOP;
+                    break;
+                }
+#endif
 
                 break;
 
@@ -879,6 +1010,44 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str6icmp(m, 'g', 'e', 'o', 'p', 'o', 's')) {
+                    r->type = MSG_REQ_REDIS_GEOPOS;
+                    break;
+                }
+
+                if (str6icmp(m, 'g', 'e', 'o', 'a', 'd', 'd')) {
+                    r->type = MSG_REQ_REDIS_GEOADD;
+                    break;
+                }
+
+                if (str6icmp(m, 'g', 'e', 't', 'd', 'e', 'l')) {
+                    r->type = MSG_REQ_REDIS_GETDEL;
+                    break;
+                }
+
+                if (str6icmp(m, 'z', 'u', 'n', 'i', 'o', 'n')) {
+                    r->type = MSG_REQ_REDIS_ZUNION;
+                    break;
+                }
+
+                if (str6icmp(m, 'z', 'i', 'n', 't', 'e', 'r')) {
+                    r->type = MSG_REQ_REDIS_ZINTER;
+                    break;
+                }
+
+                if (str6icmp(m, 'u', 'n', 'l', 'i', 'n', 'k')) {
+                    r->type = MSG_REQ_REDIS_UNLINK;
+                    break;
+                }
+
+                if (str6icmp(m, 'l', 'o', 'l', 'w', 'u', 't')) {
+                    r->type = MSG_REQ_REDIS_LOLWUT;
+                    if (!set_placeholder_key(r)) {
+                        goto enomem;
+                    }
+                    break;
+                }
+
                 break;
 
             case 7:
@@ -937,6 +1106,44 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str7icmp(m, 'z', 'm', 's', 'c', 'o', 'r', 'e')) {
+                    r->type = MSG_REQ_REDIS_ZMSCORE;
+                    break;
+                }
+
+                if (str7icmp(m, 'z', 'p', 'o', 'p', 'm', 'i', 'n')) {
+                    r->type = MSG_REQ_REDIS_ZPOPMIN;
+                    break;
+                }
+
+                if (str7icmp(m, 'z', 'p', 'o', 'p', 'm', 'a', 'x')) {
+                    r->type = MSG_REQ_REDIS_ZPOPMAX;
+                    break;
+                }
+
+                if (str7icmp(m, 'g', 'e', 'o', 'd', 'i', 's', 't')) {
+                    r->type = MSG_REQ_REDIS_GEODIST;
+                    break;
+                }
+
+                if (str7icmp(m, 'g', 'e', 'o', 'h', 'a', 's', 'h')) {
+                    r->type = MSG_REQ_REDIS_GEOHASH;
+                    break;
+                }
+
+                if (str7icmp(m, 'h', 's', 't', 'r', 'l', 'e', 'n')) {
+                    r->type = MSG_REQ_REDIS_HSTRLEN;
+                    break;
+                }
+
+                if (str7icmp(m, 'c', 'o', 'm', 'm', 'a', 'n', 'd')) {
+                    r->type = MSG_REQ_REDIS_COMMAND;
+                    if (!set_placeholder_key(r)) {
+                        goto enomem;
+                    }
+                    break;
+                }
+
                 break;
 
             case 8:
@@ -970,6 +1177,23 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str8icmp(m, 'b', 'i', 't', 'f', 'i', 'e', 'l', 'd')) {
+                    r->type = MSG_REQ_REDIS_BITFIELD;
+                    break;
+                }
+
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
+                if (str8icmp(m, 'b', 'z', 'p', 'o', 'p', 'm', 'i', 'n')) {
+                    r->type = MSG_REQ_REDIS_BZPOPMIN;
+                    break;
+                }
+
+                if (str8icmp(m, 'b', 'z', 'p', 'o', 'p', 'm', 'a', 'x')) {
+                    r->type = MSG_REQ_REDIS_BZPOPMAX;
+                    break;
+                }
+#endif
+
                 break;
 
             case 9:
@@ -998,6 +1222,16 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str9icmp(m, 'g', 'e', 'o', 's', 'e', 'a', 'r', 'c', 'h')) {
+                    r->type = MSG_REQ_REDIS_GEOSEARCH;
+                    break;
+                }
+
+                if (str9icmp(m, 'g', 'e', 'o', 'r', 'a', 'd', 'i', 'u', 's')) {
+                    r->type = MSG_REQ_REDIS_GEORADIUS;
+                    break;
+                }
+
                 break;
 
             case 10:
@@ -1005,6 +1239,30 @@ redis_parse_req(struct msg *r)
                     r->type = MSG_REQ_REDIS_SDIFFSTORE;
                     break;
                 }
+
+                if (str10icmp(m, 'h', 'r', 'a', 'n', 'd', 'f', 'i', 'e', 'l', 'd')) {
+                    r->type = MSG_REQ_REDIS_HRANDFIELD;
+                    break;
+                }
+
+                if (str10icmp(m, 's', 'm', 'i', 's', 'm', 'e', 'm', 'b', 'e', 'r')) {
+                    r->type = MSG_REQ_REDIS_SMISMEMBER;
+                    break;
+                }
+
+                if (str10icmp(m, 'z', 'd', 'i', 'f', 'f', 's', 't', 'o', 'r', 'e')) {
+                    r->type = MSG_REQ_REDIS_ZDIFFSTORE;
+                    break;
+                }
+
+#if SUPPORT_BLOCKING_REDIS_COMMAND_UNSAFE
+                if (str10icmp(m, 'b', 'r', 'p', 'o', 'p', 'l', 'p', 'u', 's', 'h')) {
+                    r->type = MSG_REQ_REDIS_BRPOPLPUSH;
+                    break;
+                }
+#endif
+
+                break;
 
             case 11:
                 if (str11icmp(m, 'i', 'n', 'c', 'r', 'b', 'y', 'f', 'l', 'o', 'a', 't')) {
@@ -1042,6 +1300,16 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str11icmp(m, 'z', 'r', 'a', 'n', 'd', 'm', 'e', 'm', 'b', 'e', 'r')) {
+                    r->type = MSG_REQ_REDIS_ZRANDMEMBER;
+                    break;
+                }
+
+                if (str11icmp(m, 'z', 'r', 'a', 'n', 'g', 'e', 's', 't', 'o', 'r', 'e')) {
+                    r->type = MSG_REQ_REDIS_ZRANGESTORE;
+                    break;
+                }
+
                 break;
 
             case 12:
@@ -1067,6 +1335,16 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str14icmp(m, 'z', 'r', 'e', 'v', 'r', 'a', 'n', 'g', 'e', 'b', 'y', 'l', 'e', 'x')) {
+                    r->type = MSG_REQ_REDIS_ZREVRANGEBYLEX;
+                    break;
+                }
+                if (str14icmp(m, 'g', 'e', 'o', 's', 'e', 'a', 'r', 'c', 'h', 's', 't', 'o', 'r', 'e')) {
+                    r->type = MSG_REQ_REDIS_GEOSEARCHSTORE;
+                    break;
+                }
+
+
                 break;
 
             case 15:
@@ -1087,19 +1365,24 @@ redis_parse_req(struct msg *r)
                     r->type = MSG_REQ_REDIS_ZREVRANGEBYSCORE;
                     break;
                 }
-
                 break;
+
+            case 17:
+                if (str17icmp(m, 'g', 'e', 'o', 'r', 'a', 'd', 'i', 'u', 's', 'b', 'y', 'm', 'e', 'm', 'b', 'e', 'r')) {
+                    r->type = MSG_REQ_REDIS_GEORADIUSBYMEMBER;
+                    break;
+                }
 
             default:
                 break;
             }
 
             if (r->type == MSG_UNKNOWN) {
-                log_error("parsed unsupported command '%.*s'", p - m, m);
+                log_error("parsed unsupported command '%.*s'", (int)(p - m), m);
                 goto error;
             }
 
-            log_debug(LOG_VERB, "parsed command '%.*s'", p - m, m);
+            log_debug(LOG_VERB, "parsed command '%.*s'", (int)(p - m), m);
 
             state = SW_REQ_TYPE_LF;
             break;
@@ -1108,7 +1391,16 @@ redis_parse_req(struct msg *r)
             switch (ch) {
             case LF:
                 if (redis_argz(r)) {
+                    if (r->narg != 1) {
+                        /* It's an error to provide more than one argument. */
+                        goto error;
+                    }
                     goto done;
+                } else if (redis_nokey(r)) {
+                    if (r->narg == 1) {
+                        goto done;
+                    }
+                    state = SW_ARGN_LEN;
                 } else if (r->narg == 1) {
                     goto error;
                 } else if (redis_argeval(r)) {
@@ -1137,7 +1429,7 @@ redis_parse_req(struct msg *r)
                 if (r->rlen >= mbuf_data_size()) {
                     log_error("parsed bad req %"PRIu64" of type %d with key "
                               "length %d that greater than or equal to maximum"
-                              " redis key length of %d", r->id, r->type,
+                              " redis key length of %zu", r->id, r->type,
                               r->rlen, mbuf_data_size());
                     goto error;
                 }
@@ -1613,7 +1905,7 @@ redis_parse_req(struct msg *r)
         case SW_ARGN_LF:
             switch (ch) {
             case LF:
-                if (redis_argn(r) || redis_argeval(r)) {
+                if (redis_argn(r) || redis_argeval(r) || redis_nokey(r)) {
                     if (r->rnarg == 0) {
                         goto done;
                     }
@@ -1651,7 +1943,7 @@ redis_parse_req(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -1664,7 +1956,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 enomem:
@@ -1761,6 +2053,9 @@ redis_parse_rsp(struct msg *r)
         switch (state) {
         case SW_START:
             r->type = MSG_UNKNOWN;
+            r->rnarg = 1;
+            r->is_top_level = 1;
+
             switch (ch) {
             case '+':
                 p = p - 1; /* go back by 1 byte */
@@ -1920,7 +2215,12 @@ redis_parse_rsp(struct msg *r)
 
                     break;
                 }
-                state = SW_RUNTO_CRLF;
+                if (ch == '\r') {
+                    state = SW_ALMOST_DONE;
+                } else {
+                    // Read remaining characters until '\r'
+                    state = SW_RUNTO_CRLF;
+                }
             }
 
             break;
@@ -1933,8 +2233,9 @@ redis_parse_rsp(struct msg *r)
 
         case SW_SIMPLE:
             if (ch == CR) {
-              state = SW_MULTIBULK_ARGN_LF;
-              r->rnarg--;
+                ASSERT(r->rnarg > 0);
+                r->rnarg--;
+                state = SW_MULTIBULK_ARGN_LF;
             }
             break;
 
@@ -1975,6 +2276,8 @@ redis_parse_rsp(struct msg *r)
             break;
 
         case SW_BULK:
+            /* SW_BULK is used for top-level bulk string replies. */
+            /* Within an array, SW_MULTIBULK_ARG... helpers are used to parse bulk strings instead. */
             if (r->token == NULL) {
                 if (ch != '$') {
                     goto error;
@@ -2047,22 +2350,37 @@ redis_parse_rsp(struct msg *r)
                 if (ch != '*') {
                     goto error;
                 }
+                r->vlen = 0;
                 r->token = p;
                 /* rsp_start <- p */
-                r->narg_start = p;
-                r->rnarg = 0;
+                if (r->is_top_level) {
+                    r->narg_start = p;
+                }
             } else if (ch == '-') {
-                state = SW_RUNTO_CRLF;
+                p = p-1;
+                r->token = NULL;
+                // This is a null array (e.g. from BLPOP). Don't increment rnarg
+                // https://redis.io/topics/protocol
+                r->vlen = 1;
+                state = SW_MULTIBULK_ARGN_LEN;
             } else if (isdigit(ch)) {
-                r->rnarg = r->rnarg * 10 + (uint32_t)(ch - '0');
+                r->vlen = r->vlen * 10 + (uint32_t)(ch - '0');
             } else if (ch == CR) {
                 if ((p - r->token) <= 1) {
                     goto error;
                 }
 
-                r->narg = r->rnarg;
-                r->narg_end = p;
+                if (r->is_top_level) {
+                    /* For multiget responses, we may need to know the number of responses to combine them. */
+                    r->narg = r->vlen;
+                    r->narg_end = p;
+                }
+                r->is_top_level = 0;
+                ASSERT(r->rnarg > 0);
+                r->rnarg += r->vlen - 1;
                 r->token = NULL;
+
+                // The stack is always initialized before transitioning to another state.
                 state = SW_MULTIBULK_NARG_LF;
             } else {
                 goto error;
@@ -2101,9 +2419,9 @@ redis_parse_rsp(struct msg *r)
                  * there is a special case for sscan/hscan/zscan, these command
                  * replay a nested multi-bulk with a number and a multi bulk like this:
                  *
-                 * - mulit-bulk
+                 * - multi-bulk
                  *    - cursor
-                 *    - mulit-bulk
+                 *    - multi-bulk
                  *       - val1
                  *       - val2
                  *       - val3
@@ -2147,6 +2465,7 @@ redis_parse_rsp(struct msg *r)
                 } else {
                     state = SW_MULTIBULK_ARGN_LEN_LF;
                 }
+                ASSERT(r->rnarg > 0);
                 r->rnarg--;
                 r->token = NULL;
             } else {
@@ -2224,7 +2543,7 @@ redis_parse_rsp(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -2237,7 +2556,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 error:
@@ -2381,7 +2700,7 @@ redis_pre_coalesce(struct msg *r)
     switch (r->type) {
     case MSG_RSP_REDIS_INTEGER:
         /* only redis 'del' fragmented request sends back integer reply */
-        ASSERT(pr->type == MSG_REQ_REDIS_DEL);
+        ASSERT(pr->type == MSG_REQ_REDIS_DEL || pr->type == MSG_REQ_REDIS_TOUCH || pr->type == MSG_REQ_REDIS_UNLINK);
 
         mbuf = STAILQ_FIRST(&r->mhdr);
         /*
@@ -2408,7 +2727,7 @@ redis_pre_coalesce(struct msg *r)
         /*
          * Muti-bulk reply can span over multiple mbufs and in each reply
          * we should skip over the narg token. Our response parser
-         * guarantees thaat the narg token and the immediately following
+         * guarantees that the narg token and the immediately following
          * '\r\n' will exist in a contiguous region in the first mbuf
          */
         ASSERT(r->narg_start == mbuf->pos);
@@ -2547,8 +2866,9 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     struct msg **sub_msgs;
     uint32_t i;
     rstatus_t status;
+    struct array *keys = r->keys;
 
-    ASSERT(array_n(r->keys) == (r->narg - 1) / key_step);
+    ASSERT(array_n(keys) == (r->narg - 1) / key_step);
 
     sub_msgs = nc_zalloc(nservers * sizeof(*sub_msgs));
     if (sub_msgs == NULL) {
@@ -2556,7 +2876,7 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     }
 
     ASSERT(r->frag_seq == NULL);
-    r->frag_seq = nc_alloc(array_n(r->keys) * sizeof(*r->frag_seq));
+    r->frag_seq = nc_alloc(array_n(keys) * sizeof(*r->frag_seq));
     if (r->frag_seq == NULL) {
         nc_free(sub_msgs);
         return NC_ENOMEM;
@@ -2583,9 +2903,9 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     r->frag_owner = r;
 
     /** Build up the key1 key2 ... to be sent to a given server at index idx */
-    for (i = 0; i < array_n(r->keys); i++) {        /* for each key */
+    for (i = 0; i < array_n(keys); i++) {        /* for each key */
         struct msg *sub_msg;
-        struct keypos *kpos = array_get(r->keys, i);
+        struct keypos *kpos = array_get_known_type(keys, i, struct keypos);
         uint32_t idx = msg_backend_idx(r, kpos->start, kpos->end - kpos->start);
         ASSERT(idx < nservers);
 
@@ -2639,6 +2959,12 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
         } else if (r->type == MSG_REQ_REDIS_MSET) {
             status = msg_prepend_format(sub_msg, "*%d\r\n$4\r\nmset\r\n",
                                         sub_msg->narg + 1);
+        } else if (r->type == MSG_REQ_REDIS_TOUCH) {
+            status = msg_prepend_format(sub_msg, "*%d\r\n$5\r\ntouch\r\n",
+                                        sub_msg->narg + 1);
+        } else if (r->type == MSG_REQ_REDIS_UNLINK) {
+            status = msg_prepend_format(sub_msg, "*%d\r\n$6\r\nunlink\r\n",
+                                        sub_msg->narg + 1);
         } else {
             NOT_REACHED();
         }
@@ -2669,8 +2995,11 @@ redis_fragment(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq)
     switch (r->type) {
     case MSG_REQ_REDIS_MGET:
     case MSG_REQ_REDIS_DEL:
+    case MSG_REQ_REDIS_TOUCH:
+    case MSG_REQ_REDIS_UNLINK:
         return redis_fragment_argx(r, nservers, frag_msgq, 1);
 
+        /* TODO: MSETNX - instead of responding with OK, respond with 1 if all fragments respond with 1 */
     case MSG_REQ_REDIS_MSET:
         return redis_fragment_argx(r, nservers, frag_msgq, 2);
 
@@ -2720,7 +3049,7 @@ redis_post_coalesce_mset(struct msg *request)
 }
 
 void
-redis_post_coalesce_del(struct msg *request)
+redis_post_coalesce_del_or_touch(struct msg *request)
 {
     struct msg *response = request->peer;
     rstatus_t status;
@@ -2787,7 +3116,9 @@ redis_post_coalesce(struct msg *r)
         return redis_post_coalesce_mget(r);
 
     case MSG_REQ_REDIS_DEL:
-        return redis_post_coalesce_del(r);
+    case MSG_REQ_REDIS_TOUCH:
+    case MSG_REQ_REDIS_UNLINK:
+        return redis_post_coalesce_del_or_touch(r);
 
     case MSG_REQ_REDIS_MSET:
         return redis_post_coalesce_mset(r);

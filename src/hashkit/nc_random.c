@@ -48,15 +48,11 @@ random_update(struct server_pool *pool)
     pool->next_rebuild = 0LL;
 
     for (server_index = 0; server_index < nserver; server_index++) {
-        struct server *server = array_get(&pool->server, server_index);
+        struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
         if (pool->auto_eject_hosts) {
-            if (server->next_retry <= now) {
-                server->next_retry = 0LL;
+            if (server->fail == FAIL_STATUS_NORMAL) {
                 nlive_server++;
-            } else if (pool->next_rebuild == 0LL ||
-                       server->next_retry < pool->next_rebuild) {
-                pool->next_rebuild = server->next_retry;
             }
         } else {
             nlive_server++;
@@ -106,9 +102,9 @@ random_update(struct server_pool *pool)
     continuum_index = 0;
     pointer_counter = 0;
     for (server_index = 0; server_index < nserver; server_index++) {
-        struct server *server = array_get(&pool->server, server_index);
+        struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
-        if (pool->auto_eject_hosts && server->next_retry > now) {
+        if (pool->auto_eject_hosts && server->fail != FAIL_STATUS_NORMAL) {
             continue;
         }
 
