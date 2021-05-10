@@ -1358,15 +1358,16 @@ server_reconnect(struct context *ctx, struct server *server)
     return status;
 }
 
+/* Add a server to the list of failed servers to retry after processing remaining events for that server (and other servers). */
 void
 add_failed_server(struct context *ctx, struct server *server)
 {
     struct server **pserver;
-    uint32_t i, n;
+    uint32_t i;
 
     server->fail = FAIL_STATUS_ERR_TRY_CONNECT;
     for (i = 0; i < array_n(ctx->fails); i++) {
-        struct server *other = *(struct server **)array_get(ctx->fails, i);
+        struct server *other = *array_get_known_type(ctx->fails, i, struct server*);
         if (other == server) {
             /* Don't add a server to fails if it's already in the array. This is actually common when a server is rejecting connections. */
             log_debug(LOG_DEBUG, "Filtering out redundant attempt to reconnect to server %.*s in pool %.*s",
