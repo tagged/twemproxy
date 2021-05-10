@@ -348,7 +348,7 @@ server_failure(struct context *ctx, struct server *server)
     rstatus_t status;
     bool is_reconnect;
 
-    /* sentinel do not need eject */
+    /* redis sentinels do not need eject - they have different reconnection logic */
     if (server->sentinel) {
         return;
     }
@@ -358,6 +358,7 @@ server_failure(struct context *ctx, struct server *server)
 
     now = nc_usec_now();
     if (now < 0) {
+        /* In practice, this shouldn't be reached - gettimeofday should never fail */
         return;
     }
 
@@ -1343,6 +1344,7 @@ server_reconnect(struct context *ctx, struct server *server)
 
     conn = server_conn(server);
     if (conn == NULL) {
+        log_error("server_conn failed on server_reconnect - this should only happen if out of memory");
         return NC_ERROR;
     }
 
