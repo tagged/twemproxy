@@ -1084,6 +1084,16 @@ server_pool_each_calc_connections(void *elem, void *data)
     return NC_OK;
 }
 
+/*
+ * Regenerates the distribution (ketama, modula, or random) for this pool of
+ * hosts to add/remove/initialize servers.
+ * This is called from the following places:
+ *
+ * 1. server_pool_init(), when nutcracker is starting up
+ * 2. When a host is marked as healthy due to passing heartbeat
+ * 3. When a host is marked as unhealthy after a server failure
+ *    that is not a reconnect
+ */
 rstatus_t
 server_pool_run(struct server_pool *pool)
 {
@@ -1394,8 +1404,14 @@ server_restore_from_heartbeat(struct server *server, struct conn *conn)
     /* Indicate that the failover pool should no longer be used for this server */
     server->fail = FAIL_STATUS_NORMAL;
 
-    /* Update the pool of backend hosts to reintroduce this server now that it's healthy */
-    status = server_pool_run(pool);
+    /*
+     * If the host could have been ejected from the distribution,
+     * then update the pool of backend hosts to reintroduce this server
+     * now that it's healthy.
+     */
+    if (pool->auto_eject_hosts) {
+        status = server_pool_run(pool);
+    }
     if (status == NC_OK) {
         log_debug(LOG_NOTICE, "updating pool %"PRIu32" '%.*s',"
                 "restored server '%.*s'", pool->idx,
