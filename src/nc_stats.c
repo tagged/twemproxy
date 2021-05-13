@@ -405,7 +405,10 @@ stats_create_buf(struct stats *st)
                 size += key_value_extra;
             }
 
-            // The possible statuses are "reconnecting", "heartbeat", "normal", and "unknown" - "reconnecting" is the longest one
+            /*
+             * The possible statuses are "reconnecting", "heartbeat", "normal",
+             * and "unknown" - "reconnecting" is the longest one
+             */
             size += sizeof("\"connection_status\":\"reconnecting\", ") - 1;
         }
     }
@@ -769,9 +772,15 @@ stats_make_rsp(struct stats *st)
                 return status;
             }
 
-            /* This may be prone to a race condition, but at worst should return "unknown"? */
-            /* Read the status directly to aid in debugging issues with the heartbeat patch. */
-            /* NOTE: If new statuses are added, stats_create_buf should be updated with the new longest length */
+            /*
+             * This may be prone to a race condition,
+             * but at worst should return "unknown"?
+             * Read the status directly to aid in debugging issues with the
+             * heartbeat patch.
+             *
+             * NOTE: If new statuses are added,
+             * stats_create_buf should be updated with the new longest length
+             */
             uint32_t fail = sts->server->fail;
             const char *status_string = "unknown";
             if (fail == FAIL_STATUS_NORMAL) {
@@ -781,7 +790,8 @@ stats_make_rsp(struct stats *st)
             } else if (fail == FAIL_STATUS_ERR_TRY_HEARTBEAT)  {
                 status_string = "heartbeat";
             }
-            status = stats_add_hardcoded_string(st, "connection_status", status_string);
+            status = stats_add_hardcoded_string(st, "connection_status",
+                                                status_string);
             if (status != NC_OK) {
                 return status;
             }
