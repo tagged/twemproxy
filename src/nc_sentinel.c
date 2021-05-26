@@ -142,7 +142,6 @@ sentinel_proc_sentinel_info(struct context *ctx, struct server *sentinel, struct
     struct string const_sentinel_masters_prefix;
     struct string const_sentinel_key_prefix;
     struct string const_master_prefix;
-    struct string const_server_key;
     struct string const_name_key;
     struct string const_address_key;
     struct string const_status_key;
