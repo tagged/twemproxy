@@ -1396,7 +1396,6 @@ void
 server_restore_from_heartbeat(struct server *server, struct conn *conn)
 {
     struct server_pool *pool;
-    rstatus_t status;
 
     conn->unref(conn);
     conn_put(conn);
@@ -1410,15 +1409,15 @@ server_restore_from_heartbeat(struct server *server, struct conn *conn)
      * now that it's healthy.
      */
     if (pool->auto_eject_hosts) {
-        status = server_pool_run(pool);
-    }
-    if (status == NC_OK) {
-        log_debug(LOG_NOTICE, "updating pool %"PRIu32" '%.*s',"
-                "restored server '%.*s'", pool->idx,
-                pool->name.len, pool->name.data,
-                server->name.len, server->name.data);
-    } else {
-        log_error("updating pool %"PRIu32" '%.*s' failed: %s", pool->idx,
-                pool->name.len, pool->name.data, strerror(errno));
+        rstatus_t status = server_pool_run(pool);
+        if (status == NC_OK) {
+            log_debug(LOG_NOTICE, "updating pool %"PRIu32" '%.*s',"
+                    "restored server '%.*s'", pool->idx,
+                    pool->name.len, pool->name.data,
+                    server->name.len, server->name.data);
+        } else {
+            log_error("updating pool %"PRIu32" '%.*s' failed: %s", pool->idx,
+                    pool->name.len, pool->name.data, strerror(errno));
+        }
     }
 }
