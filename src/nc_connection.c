@@ -158,6 +158,7 @@ _conn_get(void)
     conn->done = 0;
     conn->redis = 0;
     conn->authenticated = 0;
+    conn->sent_heartbeat = 0;
 
     conn->status = CONN_DISCONNECTED;
 
@@ -328,7 +329,7 @@ conn_put(struct conn *conn)
 void
 conn_init(void)
 {
-    log_debug(LOG_DEBUG, "conn size %d", sizeof(struct conn));
+    log_debug(LOG_DEBUG, "conn size %ld", sizeof(struct conn));
     nfree_connq = 0;
     TAILQ_INIT(&free_connq);
 }

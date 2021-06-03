@@ -111,7 +111,6 @@ struct server_pool {
     uint32_t           nserver_continuum;    /* # servers - live and dead on continuum (const) */
     struct continuum   *continuum;           /* continuum */
     uint32_t           nlive_server;         /* # live server */
-    int64_t            next_rebuild;         /* next distribution rebuild time in usec */
     int64_t            next_sentinel_connect;/* next reconnect sentinel time in usec */
     uint32_t           sentinel_idx;         /* the connected sentinel's idx */
 
@@ -130,7 +129,6 @@ struct server_pool {
     uint32_t           client_connections;   /* maximum # client connection */
     uint32_t           server_connections;   /* maximum # server connection */
     int64_t            server_retry_timeout; /* server retry timeout in usec */
-    uint32_t           server_failure_limit; /* server failure limit */
     struct string      redis_auth;           /* redis_auth password (matches requirepass on redis) */
     unsigned           require_auth;         /* require_auth? */
     struct string      failover_name;        /* failover pool name */

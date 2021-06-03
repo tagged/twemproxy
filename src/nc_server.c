@@ -348,17 +348,17 @@ server_failure(struct context *ctx, struct server *server)
     rstatus_t status;
     bool is_reconnect;
 
-    /* sentinel do not need eject */
+    /* redis sentinels do not need eject - they have different reconnection logic */
     if (server->sentinel) {
         return;
     }
 
-    log_debug(LOG_VERB, "server '%.*s' failure count %"PRIu32" limit %"PRIu32,
-              server->pname.len, server->pname.data, server->failure_count,
-              pool->server_failure_limit);
+    log_debug(LOG_VERB, "server '%.*s' failure count %"PRIu32,
+              server->pname.len, server->pname.data, server->failure_count);
 
     now = nc_usec_now();
     if (now < 0) {
+        /* In practice, this shouldn't be reached - gettimeofday should never fail */
         return;
     }
 
@@ -372,14 +372,10 @@ server_failure(struct context *ctx, struct server *server)
         return;
     }
 
-    if (server->failure_count < pool->server_failure_limit) {
-        return;
-    }
-
     stats_server_set_ts(ctx, server, server_ejected_at, now);
 
     log_debug(LOG_NOTICE, "update pool %"PRIu32" '%.*s' to delete server '%.*s' "
-              "for next %"PRIu32" secs", pool->idx, pool->name.len,
+              "for next %"PRIu64" secs", pool->idx, pool->name.len,
               pool->name.data, server->pname.len, server->pname.data,
               pool->server_retry_timeout / 1000 / 1000);
 
@@ -810,11 +806,11 @@ static void
 server_pool_sentinel_check(struct context *ctx, struct server_pool *pool)
 {
     int64_t now;
-    ASSERT(pool->redis);
 
     if (!array_n(&pool->sentinel)) {
         return;
     }
+    ASSERT(pool->redis);
 
     if (pool->next_sentinel_connect == 0LL) {
         return;
@@ -828,47 +824,6 @@ server_pool_sentinel_check(struct context *ctx, struct server_pool *pool)
 
     pool->sentinel_idx = (pool->sentinel_idx + 1) % array_n(&pool->sentinel);
     sentinel_connect(ctx, array_get_known_type(&pool->sentinel, pool->sentinel_idx, struct server));
-}
-
-static rstatus_t
-server_pool_update(struct server_pool *pool)
-{
-    rstatus_t status;
-    int64_t now;
-    uint32_t pnlive_server; /* prev # live server */
-
-    if (pool->next_rebuild == 0LL) {
-        return NC_OK;
-    }
-
-    now = nc_usec_now();
-    if (now < 0) {
-        return NC_ERROR;
-    }
-
-    if (now <= pool->next_rebuild) {
-        if (pool->nlive_server == 0) {
-            errno = ECONNREFUSED;
-            return NC_ERROR;
-        }
-        return NC_OK;
-    }
-
-    pnlive_server = pool->nlive_server;
-
-    status = server_pool_run(pool);
-    if (status != NC_OK) {
-        log_error("updating pool %"PRIu32" with dist %d failed: %s", pool->idx,
-                  pool->dist_type, strerror(errno));
-        return status;
-    }
-
-    log_debug(LOG_NOTICE, "update pool %"PRIu32" '%.*s' to add %"PRIu32" servers",
-              pool->idx, pool->name.len, pool->name.data,
-              pool->nlive_server - pnlive_server);
-
-
-    return NC_OK;
 }
 
 static uint32_t
@@ -962,22 +917,18 @@ server_pool_server(struct server_pool *pool, uint8_t *key, uint32_t keylen)
 /*
  * Returns a connection or null to forward the given key to. This will recursively choose a failover pool.
  */
-struct server *
+static struct server *
 server_pool_conn_failover(struct server_pool *failover, uint8_t *key,
                           uint32_t keylen)
 {
     /* Fallback to the failover pool */
     struct server *server = NULL;
-    rstatus_t status;
 
     if (failover == NULL) {
         return NULL;
     }
 
-    status = server_pool_update(failover);
-    if (status == NC_OK) {
-        server = server_pool_server(failover, key, keylen);
-    }
+    server = server_pool_server(failover, key, keylen);
     if (server != NULL && server->fail == FAIL_STATUS_NORMAL) {
         log_debug(LOG_VERB, "fellback to failover connection to good server '%.*s' in pool '%.*s'",
                 server->pname.len, server->pname.data, failover->name.len, failover->name.data);
@@ -1012,11 +963,6 @@ server_pool_conn(struct context *ctx, struct server_pool *pool, uint8_t *key,
     struct conn *conn;
 
     server_pool_sentinel_check(ctx, pool);
-
-    status = server_pool_update(pool);
-    if (status != NC_OK) {
-        return NULL;
-    }
 
     /* from a given {key, keylen} pick a server from pool */
     server = server_pool_server(pool, key, keylen);
@@ -1138,6 +1084,16 @@ server_pool_each_calc_connections(void *elem, void *data)
     return NC_OK;
 }
 
+/*
+ * Regenerates the distribution (ketama, modula, or random) for this pool of
+ * hosts to add/remove/initialize servers.
+ * This is called from the following places:
+ *
+ * 1. server_pool_init(), when nutcracker is starting up
+ * 2. When a host is marked as healthy due to passing heartbeat
+ * 3. When a host is marked as unhealthy after a server failure
+ *    that is not a reconnect
+ */
 rstatus_t
 server_pool_run(struct server_pool *pool)
 {
@@ -1301,6 +1257,7 @@ set_heartbeat_command(struct mbuf *mbuf, int redis)
 }
 
 /* Send a heartbeat command to a backend server. See notes/heartbeat.md. */
+/* Precondition: server->fail != FAIL_STATUS_NORMAL */
 static rstatus_t
 send_heartbeat(struct context *ctx, struct conn *conn, struct server *server)
 {
@@ -1310,6 +1267,16 @@ send_heartbeat(struct context *ctx, struct conn *conn, struct server *server)
     struct server_pool *pool;
     struct conn *c_conn;
     rstatus_t status;
+
+    if (conn->sent_heartbeat) {
+        // Don't send more than one heartbeat over the same connection to a server.
+        // - If there is a timeout waiting for the full response, this will reconnect.
+        // - If it sends a response that is well-formed, the server will be marked as healthy
+        // - If it sends a malformed response, the connection will be closed and treated as unhealthy.
+        return NC_OK;
+    }
+    log_debug(LOG_INFO, "send heartbeat request to server sd %d of %.*s", conn->sd, server->name.len, server->name.data);
+    conn->sent_heartbeat = 1;
 
     pool = (struct server_pool *)(server->owner);
 
@@ -1372,7 +1339,11 @@ server_restore(struct context *ctx, struct conn *conn)
     ASSERT(!server->sentinel);
 
     /* If the server's in an error state: On adding a server back into the pool send a heartbeat command to check if it is still healthy and should still be in the pool (?) */
-    send_heartbeat(ctx, conn, server);
+    /* This is just enqueueing the message to be sent, so something went horribly wrong if it couldn't connect */
+    if (send_heartbeat(ctx, conn, server) != NC_OK) {
+        log_error("Unexpectedly failed to send a heartbeat to the server '%.*s' to attempt reconnection, this should not happen", server->name.len, server->name.data);
+        server_close(ctx, conn);
+    }
 }
 
 rstatus_t
@@ -1383,6 +1354,7 @@ server_reconnect(struct context *ctx, struct server *server)
 
     conn = server_conn(server);
     if (conn == NULL) {
+        log_error("server_conn failed on server_reconnect - this should only happen if out of memory");
         return NC_ERROR;
     }
 
@@ -1398,12 +1370,23 @@ server_reconnect(struct context *ctx, struct server *server)
     return status;
 }
 
+/* Add a server to the list of failed servers to retry after processing remaining events for that server (and other servers). */
 void
 add_failed_server(struct context *ctx, struct server *server)
 {
     struct server **pserver;
+    uint32_t i;
 
     server->fail = FAIL_STATUS_ERR_TRY_CONNECT;
+    for (i = 0; i < array_n(ctx->fails); i++) {
+        struct server *other = *array_get_known_type(ctx->fails, i, struct server*);
+        if (other == server) {
+            /* Don't add a server to fails if it's already in the array. This is actually common when a server is rejecting connections. */
+            log_debug(LOG_DEBUG, "Filtering out redundant attempt to reconnect to server %.*s in pool %.*s",
+                    server->name.len, server->name.data, server->owner->name.len, server->owner->name.data);
+            return;
+        }
+    }
     pserver = (struct server **)array_push(ctx->fails);
     *pserver = server;
 }
@@ -1413,7 +1396,6 @@ void
 server_restore_from_heartbeat(struct server *server, struct conn *conn)
 {
     struct server_pool *pool;
-    rstatus_t status;
 
     conn->unref(conn);
     conn_put(conn);
@@ -1421,15 +1403,21 @@ server_restore_from_heartbeat(struct server *server, struct conn *conn)
     /* Indicate that the failover pool should no longer be used for this server */
     server->fail = FAIL_STATUS_NORMAL;
 
-    /* Update the pool of backend hosts to reintroduce this server now that it's healthy */
-    status = server_pool_run(pool);
-    if (status == NC_OK) {
-        log_debug(LOG_NOTICE, "updating pool %"PRIu32" '%.*s',"
-                "restored server '%.*s'", pool->idx,
-                pool->name.len, pool->name.data,
-                server->name.len, server->name.data);
-    } else {
-        log_error("updating pool %"PRIu32" '%.*s' failed: %s", pool->idx,
-                pool->name.len, pool->name.data, strerror(errno));
+    /*
+     * If the host could have been ejected from the distribution,
+     * then update the pool of backend hosts to reintroduce this server
+     * now that it's healthy.
+     */
+    if (pool->auto_eject_hosts) {
+        rstatus_t status = server_pool_run(pool);
+        if (status == NC_OK) {
+            log_debug(LOG_NOTICE, "updating pool %"PRIu32" '%.*s',"
+                    "restored server '%.*s'", pool->idx,
+                    pool->name.len, pool->name.data,
+                    server->name.len, server->name.data);
+        } else {
+            log_error("updating pool %"PRIu32" '%.*s' failed: %s", pool->idx,
+                    pool->name.len, pool->name.data, strerror(errno));
+        }
     }
 }

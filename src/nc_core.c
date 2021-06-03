@@ -296,6 +296,7 @@ core_error(struct context *ctx, struct conn *conn)
 }
 
 /* Try to re-establish any failed connections to servers once the retry timeout has elapsed for a server. */
+/* This is periodically called from core_timeout */
 static void
 retry_connection(struct context *ctx)
 {
@@ -307,6 +308,8 @@ retry_connection(struct context *ctx)
     rstatus_t status;
 
     /* Alternate between two lists of failed servers (to only retry a given server once here?) */
+    /* add_failed_server() has a check to ensure there are no duplicates, which is useful if connecting */
+    /* attempts are slow or to make the state machine for reconnecting easier to reason about. */
     servers = ctx->fails;
     idx = (ctx->failed_idx == 0) ? 1 : 0;
 
@@ -329,6 +332,10 @@ retry_connection(struct context *ctx)
         } else {
             add_failed_server(ctx, server);
         }
+        /* Postcondition: A connection in this server is either */
+        /* 1. already connected */
+        /* 2. reconnecting, or */
+        /* 3. added to the opposite failed server list to retry later */
     }
 }
 

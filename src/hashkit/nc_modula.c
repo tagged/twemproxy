@@ -48,23 +48,15 @@ modula_update(struct server_pool *pool)
     nserver = array_n(&pool->server);
     nlive_server = 0;
     total_weight = 0;
-    pool->next_rebuild = 0LL;
 
     for (server_index = 0; server_index < nserver; server_index++) {
         struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
-        if (pool->auto_eject_hosts) {
-            if (server->fail == FAIL_STATUS_NORMAL) {
-                nlive_server++;
-            }
-        } else {
-            nlive_server++;
-        }
-
         ASSERT(server->weight > 0);
 
         /* count weight only for live servers */
-        if (!pool->auto_eject_hosts || server->fail == FAIL_STATUS_NORMAL) {
+        if (should_keep_server_in_pool(pool, server)) {
+            nlive_server++;
             total_weight += server->weight;
         }
     }
@@ -80,7 +72,7 @@ modula_update(struct server_pool *pool)
 
         return NC_OK;
     }
-    log_debug(LOG_DEBUG, "%"PRIu32" of %"PRIu32" servers are live for pool "
+    log_debug(LOG_NOTICE, "modula_update: %"PRIu32" of %"PRIu32" servers are live for pool "
               "%"PRIu32" '%.*s'", nlive_server, nserver, pool->idx,
               pool->name.len, pool->name.data);
 
@@ -112,7 +104,7 @@ modula_update(struct server_pool *pool)
     for (server_index = 0; server_index < nserver; server_index++) {
         struct server *server = array_get_known_type(&pool->server, server_index, struct server);
 
-        if (pool->auto_eject_hosts && server->fail != FAIL_STATUS_NORMAL) {
+        if (!should_keep_server_in_pool(pool, server)) {
             continue;
         }
 

@@ -208,8 +208,13 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
 
     if (pmsg->swallow) {
         if (pmsg->heartbeat) {
-            /* This is the response of a heartbeat message - put the server in state FAIL_STATUS_NORMAL to indicate that this should be used instead of the failover pool */
+            /* This is a correctly parsed response to a heartbeat message - put the server in state FAIL_STATUS_NORMAL to indicate that this should be used instead of the failover pool */
+            /* It is expected that either: */
+            /* 1. This happens: A correctly parsed response is received for the heartbeat message */
+            /* 2. There is a protocol error and the connection is closed and added to the failed server list to try again */
+            /* 3. There is a timeout and the connection is closed and added to the failed server list to try again */
             struct conn *c_conn;
+            ASSERT(conn->sent_heartbeat);
 
             c_conn = pmsg->owner;
             server_restore_from_heartbeat(server, c_conn);

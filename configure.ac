@@ -3,7 +3,7 @@ m4_define([NC_MAJOR], 0)
 m4_define([NC_MINOR], 5)
 m4_define([NC_PATCH], 2)
 # Indicate in the version string that this is from the ifwe/twemproxy fork to avoid confusion in bug reports, etc.
-m4_define([NC_ITERATION], ifwe18)
+m4_define([NC_ITERATION], ifwe19)
 m4_define([NC_BUGS], [manj@cs.stanford.edu])
 
 # Initialize autoconf
