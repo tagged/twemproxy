@@ -1,12 +1,14 @@
 # Define the package version numbers and the bug reporting address
 m4_define([NC_MAJOR], 0)
 m4_define([NC_MINOR], 5)
-m4_define([NC_PATCH], 1)
+m4_define([NC_PATCH], 2)
+# Indicate in the version string that this is from the ifwe/twemproxy fork to avoid confusion in bug reports, etc.
+m4_define([NC_ITERATION], ifwe18)
 m4_define([NC_BUGS], [manj@cs.stanford.edu])
 
 # Initialize autoconf
 AC_PREREQ([2.64])
-AC_INIT([nutredis], [NC_MAJOR.NC_MINOR.NC_PATCH], [NC_BUGS])
+AC_INIT([nutredis], [NC_MAJOR.NC_MINOR.NC_PATCH-NC_ITERATION], [NC_BUGS])
 AC_CONFIG_SRCDIR([src/nc.c])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([config.h:config.h.in])
@@ -19,7 +21,8 @@ AM_INIT_AUTOMAKE([1.9 foreign])
 AC_DEFINE(NC_VERSION_MAJOR, NC_MAJOR, [Define the major version number])
 AC_DEFINE(NC_VERSION_MINOR, NC_MINOR, [Define the minor version number])
 AC_DEFINE(NC_VERSION_PATCH, NC_PATCH, [Define the patch version number])
-AC_DEFINE(NC_VERSION_STRING, "NC_MAJOR.NC_MINOR.NC_PATCH", [Define the version string])
+AC_DEFINE(NC_VERSION_ITERATION, NC_ITERATION, [Define the iteration version number])
+AC_DEFINE(NC_VERSION_STRING, "NC_MAJOR.NC_MINOR.NC_PATCH-NC_ITERATION", [Define the version string])
 
 # Checks for language
 AC_LANG([C])

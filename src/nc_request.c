@@ -42,7 +42,7 @@ req_log(struct msg *req)
     struct string *req_type;   /* request type string */
     struct keypos *kpos;
 
-    if (log_loggable(LOG_NOTICE) == 0) {
+    if (log_loggable(LOG_INFO) == 0) {
         return;
     }
 
@@ -79,10 +79,7 @@ req_log(struct msg *req)
         return;
     }
 
-    kpos = array_get(req->keys, 0);
-    if (kpos->end != NULL) {
-        *(kpos->end) = '\0';
-    }
+    kpos = array_get_known_type(req->keys, 0, struct keypos);
 
     /*
      * FIXME: add backend addr here
@@ -93,12 +90,12 @@ req_log(struct msg *req)
 
     req_type = msg_type_string(req->type);
 
-    log_debug(LOG_NOTICE, "req %"PRIu64" done on c %d req_time %"PRIi64".%03"PRIi64
+    log_debug(LOG_INFO, "req %"PRIu64" done on c %d req_time %"PRIi64".%03"PRIi64
               " msec type %.*s narg %"PRIu32" req_len %"PRIu32" rsp_len %"PRIu32
-              " key0 '%s' peer '%s' done %d error %d",
+              " key0 '%.*s' peer '%s' done %d error %d",
               req->id, req->owner->sd, req_time / 1000, req_time % 1000,
               req_type->len, req_type->data, req->narg, req_len, rsp_len,
-              kpos->start, peer_str, req->done, req->error);
+              (int)(kpos->end ? kpos->end - kpos->start : 0), kpos->start, peer_str, req->done, req->error);
 }
 
 void
@@ -204,8 +201,9 @@ req_done(struct conn *conn, struct msg *msg)
     }
 
     ASSERT(msg->frag_owner->nfrag == nfragment);
+    ASSERT(msg->redis == msg->frag_owner->redis);
 
-    msg->post_coalesce(msg->frag_owner);
+    msg_post_coalesce(msg->frag_owner);
 
     log_debug(LOG_DEBUG, "req from c %d with fid %"PRIu64" and %"PRIu32" "
               "fragments is done", conn->sd, id, nfragment);
@@ -610,7 +608,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     pool = c_conn->owner;
 
     ASSERT(array_n(msg->keys) > 0);
-    kpos = array_get(msg->keys, 0);
+    kpos = array_get_known_type(msg->keys, 0, struct keypos);
     key = kpos->start;
     keylen = (uint32_t)(kpos->end - kpos->start);
 
@@ -638,7 +636,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     }
 
     if (!conn_authenticated(s_conn)) {
-        status = msg->add_auth(ctx, c_conn, s_conn);
+        status = msg_add_auth(msg, ctx, c_conn, s_conn);
         if (status != NC_OK) {
             req_forward_error(ctx, c_conn, msg);
             s_conn->err = errno;
@@ -655,6 +653,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
               msg->mlen, msg->type, keylen, key);
 }
 
+/* Handle a full redis/memcache request */
 void
 req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
               struct msg *nmsg)
@@ -685,7 +684,8 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
             return;
         }
 
-        status = msg->reply(msg);
+        ASSERT(msg->redis);
+        status = redis_reply(msg);
         if (status != NC_OK) {
             conn->err = errno;
             return;
@@ -702,7 +702,7 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
     /* do fragment */
     pool = conn->owner;
     TAILQ_INIT(&frag_msgq);
-    status = msg->fragment(msg, array_n(&pool->server), &frag_msgq);
+    status = msg_fragment(msg, array_n(&pool->server), &frag_msgq);
     if (status != NC_OK) {
         if (!msg->noreply) {
             conn->enqueue_outq(ctx, conn, msg);
@@ -710,11 +710,12 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
         req_forward_error(ctx, conn, msg);
     }
 
-    /* if no fragment happened */
+    /* if no fragment happened, then forward the message to the corresponding backend server without modification. */
     if (TAILQ_EMPTY(&frag_msgq)) {
         req_forward(ctx, conn, msg);
         return;
     }
+    /* Otherwise, send the generated fragments to the corresponding backends */
 
     status = req_make_reply(ctx, conn, msg);
     if (status != NC_OK) {

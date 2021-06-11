@@ -101,7 +101,7 @@ stats_metric_reset(struct array *stats_metric)
     ASSERT(nmetric == STATS_POOL_NFIELD || nmetric == STATS_SERVER_NFIELD);
 
     for (i = 0; i < nmetric; i++) {
-        struct stats_metric *stm = array_get(stats_metric, i);
+        struct stats_metric *stm = array_get_known_type(stats_metric, i, struct stats_metric);
 
         stats_metric_init(stm);
     }
@@ -173,6 +173,7 @@ stats_server_init(struct stats_server *sts, struct server *s)
     rstatus_t status;
 
     sts->name = s->name;
+    sts->server = s;
     array_null(&sts->metric);
 
     status = stats_server_metric_init(sts);
@@ -184,7 +185,6 @@ stats_server_init(struct stats_server *sts, struct server *s)
               sts->name.len, sts->name.data, array_n(&sts->metric));
 
     return NC_OK;
-
 }
 
 static rstatus_t
@@ -202,7 +202,7 @@ stats_server_map(struct array *stats_server, struct array *server)
     }
 
     for (i = 0; i < nserver; i++) {
-        struct server *s = array_get(server, i);
+        struct server *s = array_get_known_type(server, i, struct server);
         struct stats_server *sts = array_push(stats_server);
 
         status = stats_server_init(sts, s);
@@ -267,7 +267,7 @@ stats_pool_reset(struct array *stats_pool)
     npool = array_n(stats_pool);
 
     for (i = 0; i < npool; i++) {
-        struct stats_pool *stp = array_get(stats_pool, i);
+        struct stats_pool *stp = array_get_known_type(stats_pool, i, struct stats_pool);
         uint32_t j, nserver;
 
         stats_metric_reset(&stp->metric);
@@ -369,6 +369,10 @@ stats_create_buf(struct stats *st)
     size += int64_max_digits;
     size += key_value_extra;
 
+    size += st->ncurr_cconn_str.len;
+    size += int64_max_digits;
+    size += key_value_extra;
+
     /* server pools */
     for (i = 0; i < array_n(&st->sum); i++) {
         struct stats_pool *stp = array_get(&st->sum, i);
@@ -400,6 +404,12 @@ stats_create_buf(struct stats *st)
                 size += int64_max_digits;
                 size += key_value_extra;
             }
+
+            /*
+             * The possible statuses are "reconnecting", "heartbeat", "normal",
+             * and "unknown" - "reconnecting" is the longest one
+             */
+            size += sizeof("\"connection_status\":\"reconnecting\", ") - 1;
         }
     }
 
@@ -445,6 +455,28 @@ stats_add_string(struct stats *st, struct string *key, struct string *val)
 
     n = nc_snprintf(pos, room, "\"%.*s\":\"%.*s\", ", key->len, key->data,
                     val->len, val->data);
+    if (n < 0 || n >= (int)room) {
+        return NC_ERROR;
+    }
+
+    buf->len += (size_t)n;
+
+    return NC_OK;
+}
+
+static rstatus_t
+stats_add_hardcoded_string(struct stats *st, const char* key, const char* value)
+{
+    struct stats_buffer *buf;
+    uint8_t *pos;
+    size_t room;
+    int n;
+
+    buf = &st->buf;
+    pos = buf->data + buf->len;
+    room = buf->size - buf->len - 1;
+
+    n = nc_snprintf(pos, room, "\"%s\":\"%s\", ", key, value);
     if (n < 0 || n >= (int)room) {
         return NC_ERROR;
     }
@@ -522,6 +554,11 @@ stats_add_header(struct stats *st)
     }
 
     status = stats_add_num(st, &st->ncurr_conn_str, conn_ncurr_conn());
+    if (status != NC_OK) {
+        return status;
+    }
+
+    status = stats_add_num(st, &st->ncurr_cconn_str, conn_ncurr_cconn());
     if (status != NC_OK) {
         return status;
     }
@@ -735,6 +772,30 @@ stats_make_rsp(struct stats *st)
                 return status;
             }
 
+            /*
+             * This may be prone to a race condition,
+             * but at worst should return "unknown"?
+             * Read the status directly to aid in debugging issues with the
+             * heartbeat patch.
+             *
+             * NOTE: If new statuses are added,
+             * stats_create_buf should be updated with the new longest length
+             */
+            uint32_t fail = sts->server->fail;
+            const char *status_string = "unknown";
+            if (fail == FAIL_STATUS_NORMAL) {
+                status_string = "normal";
+            } else if (fail == FAIL_STATUS_ERR_TRY_CONNECT) {
+                status_string = "reconnecting";
+            } else if (fail == FAIL_STATUS_ERR_TRY_HEARTBEAT)  {
+                status_string = "heartbeat";
+            }
+            status = stats_add_hardcoded_string(st, "connection_status",
+                                                status_string);
+            if (status != NC_OK) {
+                return status;
+            }
+
             status = stats_end_nesting(st);
             if (status != NC_OK) {
                 return status;
@@ -773,7 +834,7 @@ stats_send_rsp(struct stats *st)
         return NC_ERROR;
     }
 
-    log_debug(LOG_VERB, "send stats on sd %d %d bytes", sd, st->buf.len);
+    log_debug(LOG_VERB, "send stats on sd %d %zu bytes", sd, st->buf.len);
 
     n = nc_sendn(sd, st->buf.data, st->buf.len);
     if (n < 0) {
@@ -929,6 +990,7 @@ stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
 
     string_set_text(&st->ntotal_conn_str, "total_connections");
     string_set_text(&st->ncurr_conn_str, "curr_connections");
+    string_set_text(&st->ncurr_cconn_str, "curr_client_connections");
 
     st->updated = 0;
     st->aggregate = 0;
@@ -950,6 +1012,7 @@ stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
         goto error;
     }
 
+    /* Allocate a fixed-sized buffer when starting up that will be used for all future responses to stats tcp requests */
     status = stats_create_buf(st);
     if (status != NC_OK) {
         goto error;
@@ -1024,8 +1087,8 @@ stats_pool_to_metric(struct context *ctx, struct server_pool *pool,
     pidx = pool->idx;
 
     st = ctx->stats;
-    stp = array_get(&st->current, pidx);
-    stm = array_get(&stp->metric, fidx);
+    stp = array_get_known_type(&st->current, pidx, struct stats_pool);
+    stm = array_get_known_type(&stp->metric, fidx, struct stats_metric);
 
     st->updated = 1;
 
@@ -1124,9 +1187,9 @@ stats_server_to_metric(struct context *ctx, struct server *server,
     pidx = server->owner->idx;
 
     st = ctx->stats;
-    stp = array_get(&st->current, pidx);
-    sts = array_get(&stp->server, sidx);
-    stm = array_get(&sts->metric, fidx);
+    stp = array_get_known_type(&st->current, pidx, struct stats_pool);
+    sts = array_get_known_type(&stp->server, sidx, struct stats_server);
+    stm = array_get_known_type(&sts->metric, fidx, struct stats_metric);
 
     st->updated = 1;
 

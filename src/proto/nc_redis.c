@@ -43,8 +43,10 @@ static bool
 redis_argz(struct msg *r)
 {
     switch (r->type) {
+    /* TODO: PING has an optional argument, emulate that? */
     case MSG_REQ_REDIS_PING:
     case MSG_REQ_REDIS_QUIT:
+    case MSG_REQ_REDIS_COMMAND:
         return true;
 
     default:
@@ -362,6 +364,20 @@ redis_argeval(struct msg *r)
     return false;
 }
 
+static bool
+redis_nokey(struct msg *r)
+{
+    switch (r->type) {
+    case MSG_REQ_REDIS_LOLWUT:
+        return true;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
 /*
  * Return true, if the redis response is an error response i.e. a simple
  * string whose first character is '-', otherwise return false.
@@ -391,6 +407,21 @@ redis_error(struct msg *r)
     }
 
     return false;
+}
+
+// Set a placeholder key for a command with no key that is forwarded to an arbitrary backend.
+static bool
+set_placeholder_key(struct msg *r)
+{
+    struct keypos *kpos;
+    ASSERT(array_n(r->keys) == 0);
+    kpos = array_push(r->keys);
+    if (kpos == NULL) {
+        return false;
+    }
+    kpos->start = (uint8_t *)"placeholder";
+    kpos->end = kpos->start + sizeof("placeholder") - 1;
+    return true;
 }
 
 /*
@@ -472,17 +503,23 @@ redis_parse_req(struct msg *r)
         switch (state) {
 
         case SW_START:
+            ASSERT(r->token == NULL);
+            if (ch != '*') {
+                /* redis commands are always arrays */
+                goto error;
+            }
+            r->token = p;
+            /* req_start <- p */
+            r->narg_start = p;
+            r->rnarg = 0;
+            state = SW_NARG;
+
+            break;
+
         case SW_NARG:
-            if (r->token == NULL) {
-                if (ch != '*') {
-                    goto error;
-                }
-                r->token = p;
-                /* req_start <- p */
-                r->narg_start = p;
-                r->rnarg = 0;
-                state = SW_NARG;
-            } else if (isdigit(ch)) {
+            /* SW_NARG: The number of arguments in the redis command array */
+            ASSERT(r->token != NULL);
+            if (isdigit(ch)) {
                 r->rnarg = r->rnarg * 10 + (uint32_t)(ch - '0');
             } else if (ch == CR) {
                 if (r->rnarg == 0) {
@@ -1003,6 +1040,14 @@ redis_parse_req(struct msg *r)
                     break;
                 }
 
+                if (str6icmp(m, 'l', 'o', 'l', 'w', 'u', 't')) {
+                    r->type = MSG_REQ_REDIS_LOLWUT;
+                    if (!set_placeholder_key(r)) {
+                        goto enomem;
+                    }
+                    break;
+                }
+
                 break;
 
             case 7:
@@ -1088,6 +1133,14 @@ redis_parse_req(struct msg *r)
 
                 if (str7icmp(m, 'h', 's', 't', 'r', 'l', 'e', 'n')) {
                     r->type = MSG_REQ_REDIS_HSTRLEN;
+                    break;
+                }
+
+                if (str7icmp(m, 'c', 'o', 'm', 'm', 'a', 'n', 'd')) {
+                    r->type = MSG_REQ_REDIS_COMMAND;
+                    if (!set_placeholder_key(r)) {
+                        goto enomem;
+                    }
                     break;
                 }
 
@@ -1325,11 +1378,11 @@ redis_parse_req(struct msg *r)
             }
 
             if (r->type == MSG_UNKNOWN) {
-                log_error("parsed unsupported command '%.*s'", p - m, m);
+                log_error("parsed unsupported command '%.*s'", (int)(p - m), m);
                 goto error;
             }
 
-            log_debug(LOG_VERB, "parsed command '%.*s'", p - m, m);
+            log_debug(LOG_VERB, "parsed command '%.*s'", (int)(p - m), m);
 
             state = SW_REQ_TYPE_LF;
             break;
@@ -1338,7 +1391,16 @@ redis_parse_req(struct msg *r)
             switch (ch) {
             case LF:
                 if (redis_argz(r)) {
+                    if (r->narg != 1) {
+                        /* It's an error to provide more than one argument. */
+                        goto error;
+                    }
                     goto done;
+                } else if (redis_nokey(r)) {
+                    if (r->narg == 1) {
+                        goto done;
+                    }
+                    state = SW_ARGN_LEN;
                 } else if (r->narg == 1) {
                     goto error;
                 } else if (redis_argeval(r)) {
@@ -1367,7 +1429,7 @@ redis_parse_req(struct msg *r)
                 if (r->rlen >= mbuf_data_size()) {
                     log_error("parsed bad req %"PRIu64" of type %d with key "
                               "length %d that greater than or equal to maximum"
-                              " redis key length of %d", r->id, r->type,
+                              " redis key length of %zu", r->id, r->type,
                               r->rlen, mbuf_data_size());
                     goto error;
                 }
@@ -1843,7 +1905,7 @@ redis_parse_req(struct msg *r)
         case SW_ARGN_LF:
             switch (ch) {
             case LF:
-                if (redis_argn(r) || redis_argeval(r)) {
+                if (redis_argn(r) || redis_argeval(r) || redis_nokey(r)) {
                     if (r->rnarg == 0) {
                         goto done;
                     }
@@ -1881,7 +1943,7 @@ redis_parse_req(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -1894,7 +1956,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 enomem:
@@ -1991,6 +2053,9 @@ redis_parse_rsp(struct msg *r)
         switch (state) {
         case SW_START:
             r->type = MSG_UNKNOWN;
+            r->rnarg = 1;
+            r->is_top_level = 1;
+
             switch (ch) {
             case '+':
                 p = p - 1; /* go back by 1 byte */
@@ -2150,7 +2215,12 @@ redis_parse_rsp(struct msg *r)
 
                     break;
                 }
-                state = SW_RUNTO_CRLF;
+                if (ch == '\r') {
+                    state = SW_ALMOST_DONE;
+                } else {
+                    // Read remaining characters until '\r'
+                    state = SW_RUNTO_CRLF;
+                }
             }
 
             break;
@@ -2163,8 +2233,9 @@ redis_parse_rsp(struct msg *r)
 
         case SW_SIMPLE:
             if (ch == CR) {
-              state = SW_MULTIBULK_ARGN_LF;
-              r->rnarg--;
+                ASSERT(r->rnarg > 0);
+                r->rnarg--;
+                state = SW_MULTIBULK_ARGN_LF;
             }
             break;
 
@@ -2205,6 +2276,8 @@ redis_parse_rsp(struct msg *r)
             break;
 
         case SW_BULK:
+            /* SW_BULK is used for top-level bulk string replies. */
+            /* Within an array, SW_MULTIBULK_ARG... helpers are used to parse bulk strings instead. */
             if (r->token == NULL) {
                 if (ch != '$') {
                     goto error;
@@ -2277,22 +2350,37 @@ redis_parse_rsp(struct msg *r)
                 if (ch != '*') {
                     goto error;
                 }
+                r->vlen = 0;
                 r->token = p;
                 /* rsp_start <- p */
-                r->narg_start = p;
-                r->rnarg = 0;
+                if (r->is_top_level) {
+                    r->narg_start = p;
+                }
             } else if (ch == '-') {
-                state = SW_RUNTO_CRLF;
+                p = p-1;
+                r->token = NULL;
+                // This is a null array (e.g. from BLPOP). Don't increment rnarg
+                // https://redis.io/topics/protocol
+                r->vlen = 1;
+                state = SW_MULTIBULK_ARGN_LEN;
             } else if (isdigit(ch)) {
-                r->rnarg = r->rnarg * 10 + (uint32_t)(ch - '0');
+                r->vlen = r->vlen * 10 + (uint32_t)(ch - '0');
             } else if (ch == CR) {
                 if ((p - r->token) <= 1) {
                     goto error;
                 }
 
-                r->narg = r->rnarg;
-                r->narg_end = p;
+                if (r->is_top_level) {
+                    /* For multiget responses, we may need to know the number of responses to combine them. */
+                    r->narg = r->vlen;
+                    r->narg_end = p;
+                }
+                r->is_top_level = 0;
+                ASSERT(r->rnarg > 0);
+                r->rnarg += r->vlen - 1;
                 r->token = NULL;
+
+                // The stack is always initialized before transitioning to another state.
                 state = SW_MULTIBULK_NARG_LF;
             } else {
                 goto error;
@@ -2331,9 +2419,9 @@ redis_parse_rsp(struct msg *r)
                  * there is a special case for sscan/hscan/zscan, these command
                  * replay a nested multi-bulk with a number and a multi bulk like this:
                  *
-                 * - mulit-bulk
+                 * - multi-bulk
                  *    - cursor
-                 *    - mulit-bulk
+                 *    - multi-bulk
                  *       - val1
                  *       - val2
                  *       - val3
@@ -2377,6 +2465,7 @@ redis_parse_rsp(struct msg *r)
                 } else {
                     state = SW_MULTIBULK_ARGN_LEN_LF;
                 }
+                ASSERT(r->rnarg > 0);
                 r->rnarg--;
                 r->token = NULL;
             } else {
@@ -2454,7 +2543,7 @@ redis_parse_rsp(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -2467,7 +2556,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 error:
@@ -2638,7 +2727,7 @@ redis_pre_coalesce(struct msg *r)
         /*
          * Muti-bulk reply can span over multiple mbufs and in each reply
          * we should skip over the narg token. Our response parser
-         * guarantees thaat the narg token and the immediately following
+         * guarantees that the narg token and the immediately following
          * '\r\n' will exist in a contiguous region in the first mbuf
          */
         ASSERT(r->narg_start == mbuf->pos);
@@ -2777,8 +2866,9 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     struct msg **sub_msgs;
     uint32_t i;
     rstatus_t status;
+    struct array *keys = r->keys;
 
-    ASSERT(array_n(r->keys) == (r->narg - 1) / key_step);
+    ASSERT(array_n(keys) == (r->narg - 1) / key_step);
 
     sub_msgs = nc_zalloc(nservers * sizeof(*sub_msgs));
     if (sub_msgs == NULL) {
@@ -2786,7 +2876,7 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     }
 
     ASSERT(r->frag_seq == NULL);
-    r->frag_seq = nc_alloc(array_n(r->keys) * sizeof(*r->frag_seq));
+    r->frag_seq = nc_alloc(array_n(keys) * sizeof(*r->frag_seq));
     if (r->frag_seq == NULL) {
         nc_free(sub_msgs);
         return NC_ENOMEM;
@@ -2813,9 +2903,9 @@ redis_fragment_argx(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq,
     r->frag_owner = r;
 
     /** Build up the key1 key2 ... to be sent to a given server at index idx */
-    for (i = 0; i < array_n(r->keys); i++) {        /* for each key */
+    for (i = 0; i < array_n(keys); i++) {        /* for each key */
         struct msg *sub_msg;
-        struct keypos *kpos = array_get(r->keys, i);
+        struct keypos *kpos = array_get_known_type(keys, i, struct keypos);
         uint32_t idx = msg_backend_idx(r, kpos->start, kpos->end - kpos->start);
         ASSERT(idx < nservers);
 

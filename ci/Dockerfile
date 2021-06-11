@@ -5,6 +5,10 @@ FROM centos:7
 
 ENV LAST_MODIFIED_DATE 2021-04-09
 
+RUN yum install -y \
+        https://repo.ius.io/ius-release-el7.rpm \
+        https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+
 # socat Allow tests to open log files
 # which (used below)
 # python-setuptools for pip
@@ -12,10 +16,10 @@ RUN yum install -y \
         tar git gcc make tcl \
         autoconf automake libtool wget \
         memcached \
-		socat \
-		which \
-		python-setuptools && \
-	yum clean all
+        socat \
+        which \
+        python36u python36u-pip && \
+    yum clean all
 
 # Install nosetest dependencies
 RUN pip3.6 install nose && \
@@ -55,18 +59,6 @@ ADD tests /usr/src/twemproxy/tests
 
 # Not installing redis utilities, since we're not running those tests.
 RUN mkdir tests/_binaries -p
-
-# I can't install redis or redis-server in centos:7 (didn't add package), adding to centos 6
-# Install redis and redis sentinel, needed for unit tests
-# RUN yum install -y redis redis-sentinel
-
-ARG REDIS_VER=3.2.13
-RUN wget https://github.com/antirez/redis/archive/$REDIS_VER.tar.gz && \
-	tar zxvf $REDIS_VER.tar.gz && \
-	pushd redis-$REDIS_VER && \
-		make install && \
-	popd && \
-	rm -r redis-*
 
 RUN ln -nsf $PWD/src/nutcracker tests/_binaries/nutcracker && \
     cp `which redis-server` tests/_binaries/redis-server && \

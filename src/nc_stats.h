@@ -72,6 +72,7 @@ struct stats_metric {
 struct stats_server {
     struct string name;   /* server name (ref) */
     struct array  metric; /* stats_metric[] for server codec */
+    const struct server *server; /* read-only server pointer for inspecting current state. */
 };
 
 struct stats_pool {
@@ -111,6 +112,7 @@ struct stats {
     struct string       timestamp_str;   /* timestamp string */
     struct string       ntotal_conn_str; /* total connections string */
     struct string       ncurr_conn_str;  /* curr connections string */
+    struct string       ncurr_cconn_str; /* curr client connections string */
 
     volatile int        aggregate;       /* shadow (b) aggregate? */
     volatile int        updated;         /* current (a) updated? */

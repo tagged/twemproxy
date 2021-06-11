@@ -1,5 +1,12 @@
 #!/usr/bin/env php
 <?php
+/**
+ * @author Tyson Andre
+ *
+ * Heuristics to extract commands from redis-doc and determine what group of commands
+ * they'd fall under for twemproxy's request parsing logic.
+ */
+
 if (count($argv) !== 2) {
     echo "Usage: ${argv[0]} commands.json\n";
     echo "commands.json can be downloaded from https://github.com/redis/redis-doc\n";

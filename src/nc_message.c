@@ -190,10 +190,13 @@ msg_tmo_delete(struct msg *msg)
     log_debug(LOG_VERB, "delete msg %"PRIu64" from tmo rbt", msg->id);
 }
 
-static struct msg *
+/* Allocates a new message or returns one from the pool to avoid allocations. Always zeroes out important fields. */
+/* This is called a lot, so inline it */
+inline static struct msg *
 _msg_get(void)
 {
     struct msg *msg;
+    struct array *keys;
 
     if (!TAILQ_EMPTY(&free_msgq)) {
         ASSERT(nfree_msgq > 0);
@@ -210,6 +213,13 @@ _msg_get(void)
     }
 
 done:
+
+    keys = array_create(1, sizeof(struct keypos));
+    if (keys == NULL) {
+        nc_free(msg);
+        return NULL;
+    }
+
     /* c_tqe, s_tqe, and m_tqe are left uninitialized */
     msg->id = ++msg_id;
     msg->peer = NULL;
@@ -226,53 +236,39 @@ done:
     msg->token = NULL;
 
     msg->parser = NULL;
-    msg->add_auth = NULL;
     msg->result = MSG_PARSE_OK;
-
-    msg->fragment = NULL;
-    msg->reply = NULL;
-    msg->pre_coalesce = NULL;
-    msg->post_coalesce = NULL;
 
     msg->type = MSG_UNKNOWN;
 
-    msg->keys = array_create(1, sizeof(struct keypos));
-    if (msg->keys == NULL) {
-        nc_free(msg);
-        return NULL;
-    }
+    msg->keys = keys;
 
     msg->vlen = 0;
     msg->end = NULL;
 
     msg->frag_owner = NULL;
-    msg->frag_seq = NULL;
     msg->nfrag = 0;
     msg->nfrag_done = 0;
     msg->frag_id = 0;
+    msg->frag_seq = NULL;
 
+    // These are used for parsing redis requests and responses.
     msg->narg_start = NULL;
     msg->narg_end = NULL;
     msg->narg = 0;
     msg->rnarg = 0;
     msg->rlen = 0;
-    msg->integer = 0;
+    msg->integer = 0;  // This is used for both parsing redis requests and as a counter for coalescing responses such as DEL
+
+    // It's not necessary to initialize msg->stack - it's always done in nc_redis.c. Save a few instructions.
+    // msg->nested_depth = 0;  // Currently only used to parse redis *responses*. This may later include redis requests.
 
     msg->err = 0;
-    msg->error = 0;
-    msg->ferror = 0;
-    msg->request = 0;
-    msg->quit = 0;
-    msg->noreply = 0;
-    msg->noforward = 0;
-    msg->done = 0;
-    msg->fdone = 0;
-    msg->swallow = 0;
-    msg->redis = 0;
+    msg->raw_bitflags = 0;
 
     return msg;
 }
 
+/* Get a message datastructure from the message pool and set its properties/callbacks */
 struct msg *
 msg_get(struct conn *conn, bool request, bool redis)
 {
@@ -286,6 +282,7 @@ msg_get(struct conn *conn, bool request, bool redis)
     msg->owner = conn;
     msg->request = request ? 1 : 0;
     msg->redis = redis ? 1 : 0;
+    msg->heartbeat = 0;
 
     if (redis) {
         if (request) {
@@ -293,23 +290,12 @@ msg_get(struct conn *conn, bool request, bool redis)
         } else {
             msg->parser = redis_parse_rsp;
         }
-        msg->add_auth = redis_add_auth;
-        msg->fragment = redis_fragment;
-        msg->reply = redis_reply;
-        msg->failure = redis_failure;
-        msg->pre_coalesce = redis_pre_coalesce;
-        msg->post_coalesce = redis_post_coalesce;
     } else {
         if (request) {
             msg->parser = memcache_parse_req;
         } else {
             msg->parser = memcache_parse_rsp;
         }
-        msg->add_auth = memcache_add_auth;
-        msg->fragment = memcache_fragment;
-        msg->failure = memcache_failure;
-        msg->pre_coalesce = memcache_pre_coalesce;
-        msg->post_coalesce = memcache_post_coalesce;
     }
 
     if (log_loggable(LOG_NOTICE) != 0) {
@@ -419,7 +405,7 @@ msg_dump(struct msg *msg, int level)
 void
 msg_init(void)
 {
-    log_debug(LOG_DEBUG, "msg size %d", sizeof(struct msg));
+    log_debug(LOG_DEBUG, "msg size %d", (int)sizeof(struct msg));
     msg_id = 0;
     frag_id = 0;
     nfree_msgq = 0;
@@ -450,7 +436,7 @@ msg_type_string(msg_type_t type)
 bool
 msg_empty(struct msg *msg)
 {
-    return msg->mlen == 0 ? true : false;
+    return msg->mlen == 0;
 }
 
 /* read a line from msg's mbuf, then write to line_buf,

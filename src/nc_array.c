@@ -79,9 +79,9 @@ array_deinit(struct array *a)
 }
 
 uint32_t
-array_idx(struct array *a, void *elem)
+array_idx(const struct array *a, const void *elem)
 {
-    uint8_t *p, *q;
+    const uint8_t *p, *q;
     uint32_t off, idx;
 
     ASSERT(elem >= a->elem);
@@ -136,7 +136,15 @@ array_pop(struct array *a)
 }
 
 void *
-array_get(struct array *a, uint32_t idx)
+array_top(const struct array *a)
+{
+    ASSERT(a->nelem != 0);
+
+    return array_get(a, a->nelem - 1);
+}
+
+void *
+array_get(const struct array *a, uint32_t idx)
 {
     void *elem;
 
@@ -146,14 +154,6 @@ array_get(struct array *a, uint32_t idx)
     elem = (uint8_t *)a->elem + (a->size * idx);
 
     return elem;
-}
-
-void *
-array_top(struct array *a)
-{
-    ASSERT(a->nelem != 0);
-
-    return array_get(a, a->nelem - 1);
 }
 
 void

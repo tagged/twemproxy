@@ -1,3 +1,36 @@
+2021-??-??  Tyson Andre
+    * twemproxy: version 0.5.2-ifwe18 release
+	  Add support for a failover pool with arbitrary depth (tyson, john irwin)
+	  Improve tolerance of DNS failures in commands sent to multiple
+	  redis/memcache servers such as memcache get(multiget), redis mget, etc.
+	  (i.e. fragmented commands) (tyson)
+	  Raise the severity of establishing connections, connection errors and pool update logs to
+	  LOG_NOTICE (tyson)
+	  Fix memory corruption seen when all hosts are ejected from a pool with
+	  auto_eject_hosts: true (tyson)
+	  Update tests to work with python 3 (tyson)
+	  Ensure file permissions aren't chosen based on uninitialized memory. (tyson)
+	  Add a heartbeat patch to detect dead servers (charsyam)
+	  Add improvements to the heartbeat patch (tyson)
+	  Decrease the verbosity of logging clients establishing/closing connections to
+	  nutcracker to LOG_INFO for use cases that can't support persistent connections (tyson)
+	  Micro-optimization: Don't fragment memcache multigets with a single key
+	  into an array of commands to coalesce. (tyson)
+	  Support new redis commands and changes to argument counts of existing
+	  commands. (tyson)
+	  Support nested multi-bulk redis commands (arrays of arrays...)
+	  with an arbitrary depth. (qingping209, tyson)
+	  Log the event processing backend used and whether debug assertions are
+	  enabled in the `--help`/`--version` output. (tyson)
+	  Micro-optimizations for allocating msg structures, etc (tyson)
+	  Don't bother computing hash or looking up in distribution when a pool
+	  has only one server - the result will always be the same (tyson)
+	  Fix parsing bug when a redis error body contains no spaces (tyson)
+	  Ignore server_failure_limit and treat it as if it's always 1 - the heartbeat
+	  patch is responsible for reconnecting after a server failure. (tyson)
+	  Don't send more than one heartbeat request over a single connection to a
+	  server when reconnecting to a server. Reduce concurrent reconnection attempts. (tyson)
+
 2016-04-27  Misha Nasledov <misha@nasledov.com>
     * twemproxy: version 0.5.1 release
       updated to latest master from twitter/twemproxy

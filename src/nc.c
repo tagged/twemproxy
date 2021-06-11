@@ -397,8 +397,8 @@ nc_get_options(int argc, char **argv, struct instance *nci)
             }
 
             if (value < NC_MBUF_MIN_SIZE || value > NC_MBUF_MAX_SIZE) {
-                log_stderr("nutredis: mbuf chunk size must be between %zu and"
-                           " %zu bytes", NC_MBUF_MIN_SIZE, NC_MBUF_MAX_SIZE);
+                log_stderr("nutredis: mbuf chunk size must be between %d and"
+                           " %d bytes", NC_MBUF_MIN_SIZE, NC_MBUF_MAX_SIZE);
                 return NC_ERROR;
             }
 
@@ -551,7 +551,22 @@ main(int argc, char **argv)
     }
 
     if (show_version) {
-        log_stderr("This is nutredis-%s" CRLF, NC_VERSION_STRING);
+        log_stderr("This is nutredis-%s", NC_VERSION_STRING);
+#if NC_HAVE_EPOLL
+        log_stderr("async event backend: epoll");
+#elif NC_HAVE_KQUEUE
+        log_stderr("async event backend: kqueue");
+#elif NC_HAVE_EVENT_PORTS
+        log_stderr("async event backend: event_ports");
+#else
+        log_stderr("async event backend: unknown");
+#endif
+#if HAVE_ASSERT_PANIC || HAVE_ASSERT_LOG
+        log_stderr("debugging assertions are enabled (--enable-debug=yes|full), nutredis may be less efficient");
+#endif
+        // Log a blank line after the version
+        log_stderr("");
+
         if (show_help) {
             nc_show_usage();
         }

@@ -142,8 +142,11 @@ static bool
 rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
 {
     struct msg *pmsg;
+    struct server *server;
 
     ASSERT(!conn->client && !conn->proxy);
+
+    server = (struct server *)conn->owner;
 
     if (msg_empty(msg)) {
         ASSERT(conn->rmsg == NULL);
@@ -192,7 +195,7 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
      * If auto_eject_host is enabled, this will also update the failure_count
      * and eject the server if it exceeds the failure_limit
      */
-    if (msg->failure(msg)) {
+    if (msg_failure(msg)) {
         log_debug(LOG_INFO, "server failure rsp %"PRIu64" len %"PRIu32" "
                   "type %d on s %d", msg->id, msg->mlen, msg->type, conn->sd);
         rsp_put(msg);
@@ -204,6 +207,19 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
     }
 
     if (pmsg->swallow) {
+        if (pmsg->heartbeat) {
+            /* This is a correctly parsed response to a heartbeat message - put the server in state FAIL_STATUS_NORMAL to indicate that this should be used instead of the failover pool */
+            /* It is expected that either: */
+            /* 1. This happens: A correctly parsed response is received for the heartbeat message */
+            /* 2. There is a protocol error and the connection is closed and added to the failed server list to try again */
+            /* 3. There is a timeout and the connection is closed and added to the failed server list to try again */
+            struct conn *c_conn;
+            ASSERT(conn->sent_heartbeat);
+
+            c_conn = pmsg->owner;
+            server_restore_from_heartbeat(server, c_conn);
+        }
+
         conn->swallow_msg(conn, pmsg, msg);
 
         conn->dequeue_outq(ctx, conn, pmsg);
@@ -256,7 +272,7 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
     pmsg->peer = msg;
     msg->peer = pmsg;
 
-    msg->pre_coalesce(msg);
+    msg_pre_coalesce(msg);
 
     c_conn = pmsg->owner;
     ASSERT(c_conn->client && !c_conn->proxy);

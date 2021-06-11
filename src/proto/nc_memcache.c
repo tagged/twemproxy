@@ -89,6 +89,33 @@ memcache_retrieval(struct msg *r)
 }
 
 /*
+ * Return true, if the memcache command should be fragmented,
+ * otherwise return false.
+ *
+ * The only supported memcache commands that can have multiple keys
+ * are get/gets. Both are multigets, and the latter returns CAS token with the value.
+ *
+ * Fragmented requests are assumed to be slower due to the fact that they need to allocate
+ * an array to track which key went to which server, so avoid them when possible.
+ */
+static bool
+memcache_should_fragment(struct msg *r)
+{
+    switch (r->type) {
+    case MSG_REQ_MC_GET:
+    case MSG_REQ_MC_GETS:
+        // A memcache get for a single key is only sent to one server.
+        // Fragmenting it would work but be less efficient.
+        return array_n(r->keys) != 1;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
+/*
  * Return true, if the memcache command is a arithmetic command, otherwise
  * return false
  */
@@ -348,7 +375,7 @@ memcache_parse_req(struct msg *r)
                     log_error("parsed bad req %"PRIu64" of type %d with key "
                               "prefix '%.*s...' and length %d that exceeds "
                               "maximum key length", r->id, r->type, 16,
-                              r->token, p - r->token);
+                              r->token, (int)(p - r->token));
                     goto error;
                 } else if (keylen == 0) {
                     log_error("parsed bad req %"PRIu64" of type %d with an "
@@ -714,7 +741,7 @@ memcache_parse_req(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -726,7 +753,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed req %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 enomem:
@@ -1049,7 +1076,7 @@ memcache_parse_rsp(struct msg *r)
                 ASSERT(r->vlen >= (uint32_t)(b->last - p));
                 r->vlen -= (uint32_t)(b->last - p);
                 m = b->last - 1;
-                p = m; /* move forward by vlen bytes */
+                p = m; /* move forward to the end of the current mbuf */
                 break;
             }
             switch (*m) {
@@ -1174,7 +1201,7 @@ memcache_parse_rsp(struct msg *r)
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 done:
@@ -1187,7 +1214,7 @@ done:
 
     log_hexdump(LOG_VERB, b->pos, mbuf_length(b), "parsed rsp %"PRIu64" res %d "
                 "type %d state %d rpos %d of %d", r->id, r->result, r->type,
-                r->state, r->pos - b->pos, b->last - b->pos);
+                r->state, (int)(r->pos - b->pos), (int)(b->last - b->pos));
     return;
 
 error:
@@ -1240,22 +1267,12 @@ memcache_fragment_retrieval(struct msg *r, uint32_t nservers,
                             struct msg_tqh *frag_msgq,
                             uint32_t key_step)
 {
+    struct conn *conn = r->owner;
+    struct server_pool *pool = conn->owner;
     struct mbuf *mbuf;
     struct msg **sub_msgs;
     uint32_t i;
     rstatus_t status;
-
-    sub_msgs = nc_zalloc(nservers * sizeof(*sub_msgs));
-    if (sub_msgs == NULL) {
-        return NC_ENOMEM;
-    }
-
-    ASSERT(r->frag_seq == NULL);
-    r->frag_seq = nc_alloc(array_n(r->keys) * sizeof(*r->frag_seq));
-    if (r->frag_seq == NULL) {
-        nc_free(sub_msgs);
-        return NC_ENOMEM;
-    }
 
     mbuf = STAILQ_FIRST(&r->mhdr);
     mbuf->pos = mbuf->start;
@@ -1275,10 +1292,68 @@ memcache_fragment_retrieval(struct msg *r, uint32_t nservers,
     r->nfrag = 0;
     r->frag_owner = r;
 
+    ASSERT(r->frag_seq == NULL);
+    r->frag_seq = nc_alloc(array_n(r->keys) * sizeof(*r->frag_seq));
+    if (r->frag_seq == NULL) {
+        return NC_ENOMEM;
+    }
+
+    /* After initializing data structures to fragment keys, either fragment by key or by server id depending on whether the failover pool could possibly be used. */
+    /* TODO: Copy these changes for redis */
+    if (pool->failover) {
+        /* Because a failover pool has different sharding, we can't correctly batch keys that belong to the same server for the original pool unless they have the same hash_key. Instead, send every command as a single key, continuing to pipeline. */
+        /* This makes multigets with more than one key slightly less efficient, but reduces the cache miss rate for memcache multigets. */
+        for (i = 0; i < array_n(r->keys); i++) {        /* for each key */
+            struct msg *sub_msg;
+            struct keypos *kpos = array_get_known_type(r->keys, i, struct keypos);
+
+            sub_msg = msg_get(r->owner, r->request, r->redis);
+            if (sub_msg == NULL) {
+                return NC_ENOMEM;
+            }
+            r->frag_seq[i] = sub_msg;
+
+            sub_msg->narg++;
+            status = memcache_append_key(sub_msg, kpos->start, kpos->end - kpos->start);
+            if (status != NC_OK) {
+                return status;
+            }
+
+            /* prepend get/gets */
+            if (r->type == MSG_REQ_MC_GET) {
+                status = msg_prepend(sub_msg, (uint8_t *)"get ", 4);
+            } else if (r->type == MSG_REQ_MC_GETS) {
+                status = msg_prepend(sub_msg, (uint8_t *)"gets ", 5);
+            }
+            if (status != NC_OK) {
+                return status;
+            }
+
+            /* append \r\n */
+            status = msg_append(sub_msg, (uint8_t *)CRLF, CRLF_LEN);
+            if (status != NC_OK) {
+                return status;
+            }
+
+            sub_msg->type = r->type;
+            sub_msg->frag_id = r->frag_id;
+            sub_msg->frag_owner = r->frag_owner;
+
+            TAILQ_INSERT_TAIL(frag_msgq, sub_msg, m_tqe);
+            r->nfrag++;
+        }
+        return status;
+    }
+
+    sub_msgs = nc_zalloc(nservers * sizeof(*sub_msgs));
+    if (sub_msgs == NULL) {
+        return NC_ENOMEM;
+    }
+
     /** Build up the key1 key2 ... to be sent to a given server at index idx */
     for (i = 0; i < array_n(r->keys); i++) {        /* for each  key */
         struct msg *sub_msg;
-        struct keypos *kpos = array_get(r->keys, i);
+        struct keypos *kpos = array_get_known_type(r->keys, i, struct keypos);
         uint32_t idx = msg_backend_idx(r, kpos->start, kpos->end - kpos->start);
         ASSERT(idx < nservers);
 
@@ -1338,7 +1413,7 @@ memcache_fragment_retrieval(struct msg *r, uint32_t nservers,
 rstatus_t
 memcache_fragment(struct msg *r, uint32_t nservers, struct msg_tqh *frag_msgq)
 {
-    if (memcache_retrieval(r)) {
+    if (memcache_should_fragment(r)) {
         return memcache_fragment_retrieval(r, nservers, frag_msgq, 1);
     }
     return NC_OK;

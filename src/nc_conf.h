@@ -95,8 +95,9 @@ struct conf_pool {
     int                auto_eject_hosts;      /* auto_eject_hosts: */
     int                server_connections;    /* server_connections: */
     int                server_retry_timeout;  /* server_retry_timeout: in msec */
-    int                server_failure_limit;  /* server_failure_limit: */
+    int                unused_server_failure_limit;  /* server_failure_limit: */
     struct array       server;                /* servers: conf_server[] */
+    struct string      failover_name;         /* failover pool name */
     struct array       sentinel;              /* sentinels: conf_server[] */
     unsigned           valid:1;               /* valid? */
 };
