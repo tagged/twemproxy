@@ -61,7 +61,9 @@ nutredis_LDADD += $(top_builddir)/src/event/libevent.a
 nutredis_LDADD += $(top_builddir)/contrib/yaml-0.1.4/src/.libs/libyaml.a
 
 TESTS = test_all
-bin_PROGRAMS = test_all
+# This program should be compiled to run with make check, 
+# but should not be installed with make install.
+check_PROGRAMS = test_all
 
 test_all_SOURCES = test_all.c \
 	nc_core.c nc_core.h		\
