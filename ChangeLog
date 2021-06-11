@@ -1,5 +1,5 @@
 2021-??-??  Tyson Andre
-    * twemproxy: version 0.5.2-ifwe18 release
+    * twemproxy: version 0.5.2-tmg19 release
 	  Add support for a failover pool with arbitrary depth (tyson, john irwin)
 	  Improve tolerance of DNS failures in commands sent to multiple
 	  redis/memcache servers such as memcache get(multiget), redis mget, etc.
