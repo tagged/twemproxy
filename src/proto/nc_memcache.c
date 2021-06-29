@@ -20,6 +20,13 @@
 #include <nc_core.h>
 #include <nc_proto.h>
 
+#define RSP_STRING(ACTION)                                                          \
+    ACTION( mn,               "MN\r\n"                                            ) \
+
+#define DEFINE_ACTION(_var, _str) static struct string rsp_##_var = string(_str);
+    RSP_STRING( DEFINE_ACTION )
+#undef DEFINE_ACTION
+
 /*
  * From memcache protocol specification:
  *
@@ -31,6 +38,7 @@
  * control characters or whitespace.
  */
 #define MEMCACHE_MAX_KEY_LENGTH 250
+
 
 /*
  * Return true, if the memcache command is a storage command, otherwise
@@ -79,6 +87,12 @@ memcache_retrieval(struct msg *r)
     switch (r->type) {
     case MSG_REQ_MC_GET:
     case MSG_REQ_MC_GETS:
+        /*
+         * NOTE: For convenience, meta-get is also marked as retrieval
+         * (instead of variable keys in a request, it has variable flag counts)
+         */
+    case MSG_REQ_MC_MG:
+    case MSG_REQ_MC_ME:
         return true;
 
     default:
@@ -236,7 +250,37 @@ memcache_parse_req(struct msg *r)
                 r->narg++;
 
                 switch (p - m) {
+                case 2:
+                    /*
+                     * All commands of length 2 are meta-commands
+                     * and start with 'm'.
+                     */
+                    if (m[0] == 'm') {
+                        if (m[1] == 'g') {
+                            r->type = MSG_REQ_MC_MG;
+                            break;
+                        }
 
+                        /* TODO: Implement meta-set support, this is likely to change in https://github.com/memcached/memcached/pull/795
+                        if (m[1] == 's') {
+                            r->type = MSG_REQ_MC_MS;
+                            break;
+                        }
+                        */
+
+                        if (m[1] == 'n') {
+                            r->type = MSG_REQ_MC_MN;
+                            r->noforward = 1;
+                            break;
+                        }
+
+                        if (m[1] == 'e') {
+                            r->type = MSG_REQ_MC_ME;
+                            break;
+                        }
+                    }
+
+                    break;
                 case 3:
                     if (str4cmp(m, 'g', 'e', 't', ' ')) {
                         r->type = MSG_REQ_MC_GET;
@@ -316,6 +360,14 @@ memcache_parse_req(struct msg *r)
                         break;
                     }
 
+                    if (str7cmp(m, 'v', 'e', 'r', 's', 'i', 'o', 'n')) {
+                        r->type = MSG_REQ_MC_VERSION;
+                        if (!set_placeholder_key(r)) {
+                            goto enomem;
+                        }
+                        break;
+                    }
+
                     break;
                 }
 
@@ -332,12 +384,16 @@ memcache_parse_req(struct msg *r)
                 case MSG_REQ_MC_INCR:
                 case MSG_REQ_MC_DECR:
                 case MSG_REQ_MC_TOUCH:
+
+                case MSG_REQ_MC_MG: /* New meta commands */
+                case MSG_REQ_MC_ME:
                     if (ch == CR) {
                         goto error;
                     }
                     state = SW_SPACES_BEFORE_KEY;
                     break;
-
+                case MSG_REQ_MC_MN: /* no-op, currently takes no flags/args */
+                case MSG_REQ_MC_VERSION:
                 case MSG_REQ_MC_QUIT:
                     p = p - 1; /* go back by 1 byte */
                     state = SW_CRLF;
@@ -798,6 +854,7 @@ memcache_parse_rsp(struct msg *r)
         SW_RUNTO_CRLF,
         SW_CRLF,
         SW_ALMOST_DONE,             /* 15 */
+        SW_SPACES_BEFORE_META_VLEN, /* 15 */
         SW_SENTINEL
     } state;
 
@@ -862,6 +919,34 @@ memcache_parse_rsp(struct msg *r)
                 r->type = MSG_UNKNOWN;
 
                 switch (p - m) {
+                case 2:
+                    if (str2cmp(m, 'O', 'K')) {
+                        r->type = MSG_RSP_MC_OK;
+                        break;
+                    }
+
+                    if (str2cmp(m, 'V', 'A')) {
+                        r->type = MSG_RSP_MC_VA;
+                        break;
+                    }
+
+                    if (str2cmp(m, 'E', 'N')) {
+                        r->type = MSG_RSP_MC_EN;
+                        break;
+                    }
+
+                    if (str2cmp(m, 'M', 'N')) {
+                        r->type = MSG_RSP_MC_MN;
+                        break;
+                    }
+
+                    if (str2cmp(m, 'M', 'E')) {
+                        r->type = MSG_RSP_MC_ME;
+                        break;
+                    }
+
+                    break;
+
                 case 3:
                     if (str4cmp(m, 'E', 'N', 'D', '\r')) {
                         r->type = MSG_RSP_MC_END;
@@ -913,6 +998,11 @@ memcache_parse_rsp(struct msg *r)
                         break;
                     }
 
+                    if (str7cmp(m, 'V', 'E', 'R', 'S', 'I', 'O', 'N')) {
+                        r->type = MSG_RSP_MC_VERSION;
+                        break;
+                    }
+
                     break;
 
                 case 9:
@@ -955,10 +1045,10 @@ memcache_parse_rsp(struct msg *r)
                 case MSG_RSP_MC_NOT_FOUND:
                 case MSG_RSP_MC_DELETED:
                 case MSG_RSP_MC_TOUCHED:
-                    state = SW_CRLF;
-                    break;
-
                 case MSG_RSP_MC_END:
+                case MSG_RSP_MC_ERROR:
+                case MSG_RSP_MC_MN:
+                case MSG_RSP_MC_EN:
                     state = SW_CRLF;
                     break;
 
@@ -966,16 +1056,21 @@ memcache_parse_rsp(struct msg *r)
                     state = SW_SPACES_BEFORE_KEY;
                     break;
 
-                case MSG_RSP_MC_ERROR:
-                    state = SW_CRLF;
+                case MSG_RSP_MC_VA:
+                    r->vlen = 0;
+                    state = SW_SPACES_BEFORE_VLEN;
                     break;
 
                 case MSG_RSP_MC_CLIENT_ERROR:
                 case MSG_RSP_MC_SERVER_ERROR:
+                case MSG_RSP_MC_VERSION:
+                case MSG_RSP_MC_OK:
+                case MSG_RSP_MC_ME:
                     state = SW_RUNTO_CRLF;
                     break;
 
                 default:
+                    fprintf(stderr, "DEBUG NOT REACHED state=%d\n", (int)r->type);
                     NOT_REACHED();
                 }
 
@@ -1096,7 +1191,12 @@ memcache_parse_rsp(struct msg *r)
             switch (ch) {
             case LF:
                 /* state = SW_END; */
-                state = SW_RSP_STR;
+                if (r->type == MSG_RSP_MC_VA) {
+                    /* Meta-commands just have a value without "END\r\n". */
+                    state = SW_START;
+                } else {
+                    state = SW_RSP_STR;
+                }
                 break;
 
             default:
@@ -1135,7 +1235,7 @@ memcache_parse_rsp(struct msg *r)
         case SW_RUNTO_CRLF:
             switch (ch) {
             case CR:
-                if (r->type == MSG_RSP_MC_VALUE) {
+                if (r->type == MSG_RSP_MC_VALUE || r->type == MSG_RSP_MC_VA) {
                     state = SW_RUNTO_VAL;
                 } else {
                     state = SW_ALMOST_DONE;
@@ -1244,6 +1344,10 @@ memcache_append_key(struct msg *r, uint8_t *key, uint32_t keylen)
         return NC_ENOMEM;
     }
 
+    /*
+     * TODO probably need to support meta protocol 'b' flag for sharding
+     * (interpret key as base64 encoded binary value)
+     */
     kpos = array_push(r->keys);
     if (kpos == NULL) {
         return NC_ENOMEM;
@@ -1632,7 +1736,17 @@ memcache_add_auth(struct context *ctx, struct conn *c_conn, struct conn *s_conn)
 rstatus_t
 memcache_reply(struct msg *r)
 {
-    NOT_REACHED();
-    return NC_OK;
+    struct msg *response = r->peer;
+
+    ASSERT(response != NULL && response->owner != NULL);
+
+    switch (r->type) {
+    case MSG_REQ_MC_MN:
+        return msg_append(response, rsp_mn.data, rsp_mn.len);
+
+    default:
+        NOT_REACHED();
+        return NC_OK;
+    }
 }
 

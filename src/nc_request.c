@@ -684,8 +684,11 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
             return;
         }
 
-        ASSERT(msg->redis);
-        status = redis_reply(msg);
+        if (msg->redis) {
+            status = redis_reply(msg);
+        } else {
+            status = memcache_reply(msg);
+        }
         if (status != NC_OK) {
             conn->err = errno;
             return;

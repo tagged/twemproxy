@@ -6,9 +6,9 @@
 static int failures = 0;
 static int successes = 0;
 
-static void expect_same_uint32_t(uint32_t expected, uint32_t actual, const char* message) {
+static void expect_same_uint32_t(uint32_t expected, uint32_t actual, const char* message, const char *data) {
     if (expected != actual) {
-        printf("FAIL Expected %u, got %u (%s)\n", (unsigned int) expected, (unsigned int) actual, message);
+        printf("FAIL Expected %u, got %u (%s)\ndata=(%s)", (unsigned int) expected, (unsigned int) actual, message, data);
         failures++;
     } else {
         // printf("PASS (%s)\n", message);
@@ -16,9 +16,9 @@ static void expect_same_uint32_t(uint32_t expected, uint32_t actual, const char*
     }
 }
 
-static void expect_same_ptr(void *expected, void *actual, const char* message) {
+static void expect_same_ptr(void *expected, void *actual, const char* message, const char *data) {
     if (expected != actual) {
-        printf("FAIL Expected %p, got %p (%s)\n", expected, actual, message);
+        printf("FAIL Expected %p, got %p (%s)\ndata=(%s)\n", expected, actual, message, data);
         failures++;
     } else {
         // printf("PASS (%s)\n", message);
@@ -28,10 +28,10 @@ static void expect_same_ptr(void *expected, void *actual, const char* message) {
 
 static void test_hash_algorithms(void) {
     // refer to libmemcached tests/hash_results.h
-    expect_same_uint32_t(2297466611U, hash_one_at_a_time("apple", 5), "should have expected one_at_a_time hash for key \"apple\"");
-    expect_same_uint32_t(3195025439U, hash_md5("apple", 5), "should have expected md5 hash for key \"apple\"");
-    expect_same_uint32_t(3853726576U, ketama_hash("server1-8", strlen("server1-8"), 0), "should have expected ketama_hash for server1-8 index 0");
-    expect_same_uint32_t(2667054752U, ketama_hash("server1-8", strlen("server1-8"), 3), "should have expected ketama_hash for server1-8 index 3");
+    expect_same_uint32_t(2297466611U, hash_one_at_a_time("apple", 5), "should have expected one_at_a_time hash for key \"apple\"", "");
+    expect_same_uint32_t(3195025439U, hash_md5("apple", 5), "should have expected md5 hash for key \"apple\"", "");
+    expect_same_uint32_t(3853726576U, ketama_hash("server1-8", strlen("server1-8"), 0), "should have expected ketama_hash for server1-8 index 0", "");
+    expect_same_uint32_t(2667054752U, ketama_hash("server1-8", strlen("server1-8"), 3), "should have expected ketama_hash for server1-8 index 3", "");
 }
 
 static void test_config_parsing(void) {
@@ -67,10 +67,10 @@ static void test_redis_parse_req_success_case(char* data, int expected_type) {
     req->pos = m->start;
 
     redis_parse_req(req);
-    expect_same_ptr(m->last, req->pos, "redis_parse_req: expected req->pos to be m->last");
-    expect_same_uint32_t(SW_START, req->state, "redis_parse_req: expected full buffer to be parsed");
-    expect_same_uint32_t(expected_type, req->type, "redis_parse_req: expected request type to be parsed");
-    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
+    expect_same_ptr(m->last, req->pos, "redis_parse_req: expected req->pos to be m->last", data);
+    expect_same_uint32_t(SW_START, req->state, "redis_parse_req: expected full buffer to be parsed", data);
+    expect_same_uint32_t(expected_type, req->type, "redis_parse_req: expected request type to be parsed", data);
+    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error", data);
 
     msg_put(req);
     // mbuf_put(m);
@@ -111,9 +111,9 @@ static void test_redis_parse_rsp_success_case(char* data) {
     rsp->pos = m->start;
 
     redis_parse_rsp(rsp);
-    expect_same_ptr(m->last, rsp->pos, "redis_parse_rsp: expected rsp->pos to be m->last");
-    expect_same_uint32_t(SW_START, rsp->state, "redis_parse_rsp: expected full buffer to be parsed");
-    expect_same_uint32_t(1, rsp->rnarg ? rsp->rnarg : 1, "expected remaining args to be 0 or 1");
+    expect_same_ptr(m->last, rsp->pos, "redis_parse_rsp: expected rsp->pos to be m->last", data);
+    expect_same_uint32_t(SW_START, rsp->state, "redis_parse_rsp: expected full buffer to be parsed", data);
+    expect_same_uint32_t(1, rsp->rnarg ? rsp->rnarg : 1, "expected remaining args to be 0 or 1", data);
 
     msg_put(rsp);
     // mbuf_put(m);
@@ -164,10 +164,10 @@ static void test_memcache_parse_rsp_success_case(char* data, int expected) {
     rsp->pos = m->start;
 
     memcache_parse_rsp(rsp);
-    expect_same_ptr(m->last, rsp->pos, "memcache_parse_rsp: expected rsp->pos to be m->last");
-    expect_same_uint32_t(SW_START, rsp->state, "memcache_parse_rsp: expected state to be SW_START after parsing full buffer");
-    expect_same_uint32_t(expected, rsp->type, "memcache_parse_rsp: expected response type to be parsed");
-    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
+    expect_same_ptr(m->last, rsp->pos, "memcache_parse_rsp: expected rsp->pos to be m->last", data);
+    expect_same_uint32_t(SW_START, rsp->state, "memcache_parse_rsp: expected state to be SW_START after parsing full buffer", data);
+    expect_same_uint32_t(expected, rsp->type, "memcache_parse_rsp: expected response type to be parsed", data);
+    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error", data);
 
     msg_put(rsp);
     // mbuf_put(m);
@@ -183,6 +183,13 @@ static void test_memcache_parse_rsp_success(void) {
     test_memcache_parse_rsp_success_case("NOT_FOUND\r\n", MSG_RSP_MC_NOT_FOUND);
     test_memcache_parse_rsp_success_case("VALUE key 0 2\r\nab\r\nEND\r\n", MSG_RSP_MC_END);
     test_memcache_parse_rsp_success_case("VALUE key 0 2\r\nab\r\nVALUE key2 0 2\r\ncd\r\nEND\r\n", MSG_RSP_MC_END);
+    /* Meta command responses */
+    test_memcache_parse_rsp_success_case("VA 5\r\nvalue\r\n", MSG_RSP_MC_VA);
+    test_memcache_parse_rsp_success_case("OK\r\n", MSG_RSP_MC_OK);
+    test_memcache_parse_rsp_success_case("EN\r\n", MSG_RSP_MC_EN);
+    test_memcache_parse_rsp_success_case("MN\r\n", MSG_RSP_MC_MN);
+    test_memcache_parse_rsp_success_case("ME TARZAN exp=-1 la=1675 cas=2 fetch=yes cls=1 size=67\r\n", MSG_RSP_MC_ME);
+    test_memcache_parse_rsp_success_case("VERSION 1.6.9_15_g79d9969\r\n", MSG_RSP_MC_VERSION);
 }
 
 static void test_memcache_parse_req_success_case(char* data, int expected) {
@@ -204,10 +211,10 @@ static void test_memcache_parse_req_success_case(char* data, int expected) {
     req->pos = m->start;
 
     memcache_parse_req(req);
-    expect_same_ptr(m->last, req->pos, "memcache_parse_req: expected req->pos to be m->last");
-    expect_same_uint32_t(SW_START, req->state, "memcache_parse_req: expected state to be SW_START after parsing full buffer");
-    expect_same_uint32_t(expected, req->type, "memcache_parse_req: expected response type to be parsed");
-    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
+    expect_same_ptr(m->last, req->pos, "memcache_parse_req: expected req->pos to be m->last", data);
+    expect_same_uint32_t(SW_START, req->state, "memcache_parse_req: expected state to be SW_START after parsing full buffer", data);
+    expect_same_uint32_t(expected, req->type, "memcache_parse_req: expected response type to be parsed", data);
+    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error", data);
 
     msg_put(req);
     // mbuf_put(m);
@@ -228,6 +235,12 @@ static void test_memcache_parse_req_success(void) {
     test_memcache_parse_req_success_case("incr key 1\r\n", MSG_REQ_MC_INCR);
     test_memcache_parse_req_success_case("quit\r\n", MSG_REQ_MC_QUIT);
     test_memcache_parse_req_success_case("touch key 12345\r\n", MSG_REQ_MC_TOUCH);
+    test_memcache_parse_req_success_case("mg key v\r\n", MSG_REQ_MC_MG);
+    test_memcache_parse_req_success_case("mg key v\r\n", MSG_REQ_MC_MG);
+    test_memcache_parse_req_success_case("mg foo v h l c\r\n", MSG_REQ_MC_MG);
+    test_memcache_parse_req_success_case("mn\r\n", MSG_REQ_MC_MN);
+    test_memcache_parse_req_success_case("me tarzan\r\n", MSG_REQ_MC_ME);
+    test_memcache_parse_req_success_case("version\r\n", MSG_REQ_MC_VERSION);
 }
 
 int main(int argc, char **argv) {

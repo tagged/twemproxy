@@ -22,6 +22,9 @@
 
 #ifdef NC_LITTLE_ENDIAN
 
+#define str2cmp(m, c0, c1)                                                                  \
+    (*(uint16_t *) m == ((c1 << 8) | c0))
+
 #define str4cmp(m, c0, c1, c2, c3)                                                          \
     (*(uint32_t *) m == ((c3 << 24) | (c2 << 16) | (c1 << 8) | c0))
 
@@ -54,6 +57,10 @@
         (((uint32_t *) m)[2] == ((c11 << 24) | (c10 << 16) | (c9 << 8) | c8)))
 
 #else
+
+/* TODO: Could speed up a tiny bit with bswap in modern compilers */
+#define str2cmp(m, c0, c1)                                                                  \
+    (m[0] == c0 && m[1] == c1)
 
 #define str4cmp(m, c0, c1, c2, c3)                                                          \
     (m[0] == c0 && m[1] == c1 && m[2] == c2 && m[3] == c3)

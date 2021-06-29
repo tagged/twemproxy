@@ -45,6 +45,11 @@ typedef enum msg_parse_result {
     ACTION( REQ_MC_DECR )                                                                           \
     ACTION( REQ_MC_TOUCH )                     /* memcache touch request */                         \
     ACTION( REQ_MC_QUIT )                      /* memcache quit request */                          \
+    ACTION( REQ_MC_VERSION )                   /* memcache version request */                       \
+    ACTION( REQ_MC_MG )                        /* memcache meta commands - meta-get */              \
+    ACTION( REQ_MC_MS )                        /* meta-set */                                       \
+    ACTION( REQ_MC_ME )                        /* meta-debug */                                     \
+    ACTION( REQ_MC_MN )                        /* no-op */                                          \
     ACTION( RSP_MC_NUM )                       /* memcache arithmetic response */                   \
     ACTION( RSP_MC_STORED )                    /* memcache cas and storage response */              \
     ACTION( RSP_MC_NOT_STORED )                                                                     \
@@ -57,6 +62,12 @@ typedef enum msg_parse_result {
     ACTION( RSP_MC_ERROR )                     /* memcache error responses */                       \
     ACTION( RSP_MC_CLIENT_ERROR )                                                                   \
     ACTION( RSP_MC_SERVER_ERROR )                                                                   \
+    ACTION( RSP_MC_VERSION )                                                                        \
+    ACTION( RSP_MC_VA )                        /* memcache meta responses - value*/                 \
+    ACTION( RSP_MC_EN )                        /* meta response end */                              \
+    ACTION( RSP_MC_MN )                        /* meta response end */                              \
+    ACTION( RSP_MC_ME )                        /* meta debug end */                                 \
+    ACTION( RSP_MC_OK )                        /* meta response ok */                               \
     ACTION( REQ_REDIS_COPY )                   /* redis commands - keys */                          \
     ACTION( REQ_REDIS_DEL )                                                                         \
     ACTION( REQ_REDIS_EXISTS )                                                                      \
@@ -411,4 +422,20 @@ inline static rstatus_t msg_fragment(struct msg *m, uint32_t nservers, struct ms
     }
 }
 
+/*
+ * Set a placeholder key for a command with no key
+ * that is forwarded to an arbitrary backend.
+ */
+inline static bool set_placeholder_key(struct msg *r)
+{
+    struct keypos *kpos;
+    ASSERT(array_n(r->keys) == 0);
+    kpos = array_push(r->keys);
+    if (kpos == NULL) {
+        return false;
+    }
+    kpos->start = (uint8_t *)"placeholder";
+    kpos->end = kpos->start + sizeof("placeholder") - 1;
+    return true;
+}
 #endif
