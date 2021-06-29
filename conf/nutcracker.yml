@@ -35,7 +35,6 @@ gamma:
   server_failure_limit: 3
   servers:
    - 127.0.0.1:11212:1
-   - 127.0.0.1:11213:1
 
 delta:
   listen: 127.0.0.1:22124
