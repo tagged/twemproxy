@@ -35,7 +35,7 @@ req_get(struct conn *conn)
 static void
 req_log(const struct msg *req)
 {
-    struct msg *rsp;           /* peer message (response) */
+    const struct msg *rsp;           /* peer message (response) */
     int64_t req_time;          /* time cost for this request */
     const char *peer_str;      /* peer client ip:port */
     uint32_t req_len, rsp_len; /* request and response length */
@@ -127,9 +127,11 @@ req_put(struct msg *msg)
  * A request is done, if we received response for the given request.
  * A request vector is done if we received responses for all its
  * fragments.
+ *
+ * msg->fdone is modified to cache whether this request was done.
  */
 bool
-req_done(struct conn *conn, struct msg *msg)
+req_done(const struct conn *conn, struct msg *msg)
 {
     struct msg *cmsg;        /* current message */
     uint64_t id;             /* fragment id */
@@ -221,7 +223,7 @@ req_done(struct conn *conn, struct msg *msg)
  * receiving response for any its fragments.
  */
 bool
-req_error(struct conn *conn, struct msg *msg)
+req_error(const struct conn *conn, struct msg *msg)
 {
     struct msg *cmsg; /* current message */
     uint64_t id;
@@ -509,7 +511,7 @@ req_fake(struct context *ctx, struct conn *conn)
 }
 
 static bool
-req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
+req_filter(struct conn *conn, struct msg *msg)
 {
     ASSERT(conn->client && !conn->proxy);
 
@@ -680,7 +682,7 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
     /* enqueue next message (request), if any */
     conn->rmsg = nmsg;
 
-    if (req_filter(ctx, conn, msg)) {
+    if (req_filter(conn, msg)) {
         return;
     }
 

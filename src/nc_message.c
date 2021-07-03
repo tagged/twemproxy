@@ -117,7 +117,7 @@ static struct rbtree tmo_rbt;    /* timeout rbtree */
 static struct rbnode tmo_rbs;    /* timeout rbtree sentinel */
 
 #define DEFINE_ACTION(_name) string(#_name),
-static struct string msg_type_strings[] = {
+static const struct string msg_type_strings[] = {
     MSG_TYPE_CODEC( DEFINE_ACTION )
     null_string
 };
@@ -315,8 +315,8 @@ msg_get_error(bool redis, err_t err)
     struct msg *msg;
     struct mbuf *mbuf;
     int n;
-    char *errstr = err ? strerror(err) : "unknown";
-    char *protstr = redis ? "-ERR" : "SERVER_ERROR";
+    const char *errstr = err ? strerror(err) : "unknown";
+    const char *protstr = redis ? "-ERR" : "SERVER_ERROR";
 
     msg = _msg_get();
     if (msg == NULL) {
@@ -379,9 +379,9 @@ msg_put(struct msg *msg)
 }
 
 void
-msg_dump(struct msg *msg, int level)
+msg_dump(const struct msg *msg, int level)
 {
-    struct mbuf *mbuf;
+    const struct mbuf *mbuf;
 
     if (log_loggable(level) == 0) {
         return;
@@ -428,19 +428,20 @@ msg_deinit(void)
     ASSERT(nfree_msgq == 0);
 }
 
-struct string *
+const struct string *
 msg_type_string(msg_type_t type)
 {
     return &msg_type_strings[type];
 }
 
 bool
-msg_empty(struct msg *msg)
+msg_empty(const struct msg *msg)
 {
     return msg->mlen == 0;
 }
 
-/* read a line from msg's mbuf, then write to line_buf,
+/*
+ * read a line from msg's mbuf, then write to line_buf,
  * if line_num is n, we will skip front n - 1 lines in the msg
  */
 void
@@ -496,7 +497,7 @@ msg_read_line(struct msg* msg, struct mbuf *line_buf, int line_num)
 }
 
 uint32_t
-msg_backend_idx(struct msg *msg, uint8_t *key, uint32_t keylen)
+msg_backend_idx(const struct msg *msg, const uint8_t *key, uint32_t keylen)
 {
     struct conn *conn = msg->owner;
     struct server_pool *pool = conn->owner;
@@ -528,7 +529,7 @@ msg_ensure_mbuf(struct msg *msg, size_t len)
  * into mbuf
  */
 rstatus_t
-msg_append(struct msg *msg, uint8_t *pos, size_t n)
+msg_append(struct msg *msg, const uint8_t *pos, size_t n)
 {
     struct mbuf *mbuf;
 
@@ -552,7 +553,7 @@ msg_append(struct msg *msg, uint8_t *pos, size_t n)
  * into mbuf
  */
 rstatus_t
-msg_prepend(struct msg *msg, uint8_t *pos, size_t n)
+msg_prepend(struct msg *msg, const uint8_t *pos, size_t n)
 {
     struct mbuf *mbuf;
 

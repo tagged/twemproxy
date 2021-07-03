@@ -61,7 +61,7 @@ string_empty(const struct string *str)
 {
     ASSERT((str->len == 0 && str->data == NULL) ||
            (str->len != 0 && str->data != NULL));
-    return str->len == 0 ? true : false;
+    return str->len == 0;
 }
 
 rstatus_t
@@ -119,10 +119,11 @@ string_has_prefix(const struct string *s1, const struct string *prefix)
     return nc_strncmp(s1->data, prefix->data, prefix->len) == 0;
 }
 
+static const char *const hex = "0123456789abcdef";
+
 static char *
 _safe_utoa(int _base, uint64_t val, char *buf)
 {
-    char hex[] = "0123456789abcdef";
     uint32_t base = (uint32_t) _base;
     *buf-- = 0;
     do {
@@ -134,7 +135,6 @@ _safe_utoa(int _base, uint64_t val, char *buf)
 static char *
 _safe_itoa(int base, int64_t val, char *buf)
 {
-    char hex[] = "0123456789abcdef";
     char *orig_buf = buf;
     const int32_t is_neg = (val < 0);
     *buf-- = 0;

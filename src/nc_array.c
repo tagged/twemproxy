@@ -136,14 +136,6 @@ array_pop(struct array *a)
 }
 
 void *
-array_top(const struct array *a)
-{
-    ASSERT(a->nelem != 0);
-
-    return array_get(a, a->nelem - 1);
-}
-
-void *
 array_get(const struct array *a, uint32_t idx)
 {
     void *elem;
@@ -154,6 +146,14 @@ array_get(const struct array *a, uint32_t idx)
     elem = (uint8_t *)a->elem + (a->size * idx);
 
     return elem;
+}
+
+void *
+array_top(const struct array *a)
+{
+    ASSERT(a->nelem != 0);
+
+    return array_get(a, a->nelem - 1);
 }
 
 void
@@ -183,7 +183,7 @@ array_sort(struct array *a, array_compare_t compare)
  * success. On failure short-circuits and returns the error status.
  */
 rstatus_t
-array_each(struct array *a, array_each_t func, void *data)
+array_each(const struct array *a, array_each_t func, void *data)
 {
     uint32_t i, nelem;
 
