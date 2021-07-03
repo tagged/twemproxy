@@ -1,6 +1,7 @@
 #include <nc_core.h>
 #include <nc_conf.h>
 #include <nc_sentinel.h>
+#include <nc_message.h>
 
 static char *sentinel_reqs[] = {
     INFO_SENTINEL,

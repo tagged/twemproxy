@@ -51,7 +51,7 @@ docker run \
    -e REDIS_VER=$REDIS_VER \
    --name=$DOCKER_IMG_NAME \
    $DOCKER_TAG \
-   nosetests -v test_redis test_memcache test_system.test_sentinel
+   nosetests -v test_redis test_memcache test_system
 
 if [ $UNIT_TEST_FAIL = yes ]; then
     echo "See earlier output, unit tests failed" 1>&2

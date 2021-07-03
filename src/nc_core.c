@@ -34,21 +34,6 @@ core_failed_servers_init(struct context *ctx)
     }
 }
 
-static void
-core_failed_servers_deinit(struct context *ctx)
-{
-    uint32_t i, n, nsize;
-
-    for (i = 0; i < 2; i++) {
-        nsize = array_n(&(ctx->failed_servers[i]));
-        for (n = 0; n < nsize; n++) {
-            /* This is buggy but core_failed_servers_deinit isn't even referenced - failed_servers is 2 arrays */
-            array_pop(&(ctx->failed_servers[n]));
-        }
-        array_deinit(&(ctx->failed_servers[n]));
-    }
-}
-
 static rstatus_t
 core_calc_connections(struct context *ctx)
 {
@@ -252,7 +237,8 @@ static void
 core_close(struct context *ctx, struct conn *conn)
 {
     rstatus_t status;
-    char type, *addrstr;
+    char type;
+    const char *addrstr;
 
     ASSERT(conn->sd > 0);
 

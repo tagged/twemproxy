@@ -21,27 +21,27 @@
 #include <proto/nc_proto.h>
 
 #define DEFINE_ACTION(_hash, _name) string(#_name),
-static struct string hash_strings[] = {
+static const struct string hash_strings[] = {
     HASH_CODEC( DEFINE_ACTION )
     null_string
 };
 #undef DEFINE_ACTION
 
 #define DEFINE_ACTION(_hash, _name) hash_##_name,
-static hash_t hash_algos[] = {
+static const hash_t hash_algos[] = {
     HASH_CODEC( DEFINE_ACTION )
     NULL
 };
 #undef DEFINE_ACTION
 
 #define DEFINE_ACTION(_dist, _name) string(#_name),
-static struct string dist_strings[] = {
+static const struct string dist_strings[] = {
     DIST_CODEC( DEFINE_ACTION )
     null_string
 };
 #undef DEFINE_ACTION
 
-static struct command conf_commands[] = {
+static const struct command conf_commands[] = {
     { string("listen"),
       conf_set_listen,
       offsetof(struct conf_pool, listen) },
@@ -121,6 +121,9 @@ static struct command conf_commands[] = {
     null_command
 };
 
+static const struct string true_str = string("true");
+static const struct string false_str = string("false");
+
 static void
 conf_server_init(struct conf_server *cs)
 {
@@ -188,7 +191,7 @@ conf_server_each_transform(void *elem, void *data)
 }
 
 static rstatus_t
-conf_pool_init(struct conf_pool *cp, struct string *name)
+conf_pool_init(struct conf_pool *cp, const struct string *name)
 {
     rstatus_t status;
 
@@ -349,7 +352,7 @@ conf_pool_each_transform(void *elem, void *data)
 }
 
 static void
-conf_dump(struct conf *cf)
+conf_dump(const struct conf *cf)
 {
     uint32_t i, j, npool, nserver;
     struct conf_pool *cp;
@@ -445,7 +448,7 @@ conf_rewrite(struct context *ctx)
     struct conf *cf;
     struct conf_pool *cp;
     struct conf_server *cs;
-    struct string true_str, false_str, bool_str;
+    struct string bool_str;
     FILE *fh;
     char temp_conf_file[256];
 
@@ -467,9 +470,6 @@ conf_rewrite(struct context *ctx)
                   temp_conf_file, strerror(errno));
         return;
     }
-
-    string_set_text(&true_str, "true");
-    string_set_text(&false_str, "false");
 
     for (i = 0; i < npool; i++) {
         cp = array_get_known_type(&cf->pool, i, struct conf_pool);
@@ -698,7 +698,7 @@ conf_pop_scalar(struct conf *cf)
 static rstatus_t
 conf_handler(struct conf *cf, void *data)
 {
-    struct command *cmd;
+    const struct command *cmd;
     struct string *key, *value;
     uint32_t narg;
 
@@ -716,7 +716,7 @@ conf_handler(struct conf *cf, void *data)
               value->len, value->data);
 
     for (cmd = conf_commands; cmd->name.len != 0; cmd++) {
-        char *rv;
+        const char *rv;
 
         if (string_compare(key, &cmd->name) != 0) {
             continue;
@@ -951,7 +951,7 @@ conf_parse(struct conf *cf)
 }
 
 static struct conf *
-conf_open(char *filename)
+conf_open(const char *filename)
 {
     rstatus_t status;
     struct conf *cf;
@@ -1342,14 +1342,6 @@ conf_pre_validate(struct conf *cf)
 }
 
 static int
-conf_server_pname_cmp(const void *t1, const void *t2)
-{
-    const struct conf_server *s1 = t1, *s2 = t2;
-
-    return string_compare(&s1->pname, &s2->pname);
-}
-
-static int
 conf_server_name_cmp(const void *t1, const void *t2)
 {
     const struct conf_server *s1 = t1, *s2 = t2;
@@ -1616,7 +1608,7 @@ conf_post_validate(struct conf *cf)
 }
 
 struct conf *
-conf_create(char *filename)
+conf_create(const char *filename)
 {
     rstatus_t status;
     struct conf *cf;
@@ -1676,12 +1668,13 @@ conf_destroy(struct conf *cf)
     nc_free(cf);
 }
 
-char *
-conf_set_string(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_set_string(struct conf *cf, const struct command *cmd, void *conf)
 {
     rstatus_t status;
     uint8_t *p;
-    struct string *field, *value;
+    struct string *field;
+    const struct string *value;
 
     p = conf;
     field = (struct string *)(p + cmd->offset);
@@ -1700,8 +1693,8 @@ conf_set_string(struct conf *cf, struct command *cmd, void *conf)
     return CONF_OK;
 }
 
-char *
-conf_set_listen(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_set_listen(struct conf *cf, const struct command *cmd, void *conf)
 {
     rstatus_t status;
     struct string *value;
@@ -1725,8 +1718,6 @@ conf_set_listen(struct conf *cf, struct command *cmd, void *conf)
 
     if (value->data[0] == '/') {
         uint8_t *q, *start, *perm;
-        uint32_t permlen;
-
 
         /* parse "socket_path permissions" from the end */
         p = value->data + value->len -1;
@@ -1739,7 +1730,6 @@ conf_set_listen(struct conf *cf, struct command *cmd, void *conf)
             field->perm = (mode_t)0;
         } else {
             perm = q + 1;
-            permlen = (uint32_t)(p - perm + 1);
 
             p = q - 1;
             name = start;
@@ -1792,8 +1782,8 @@ conf_set_listen(struct conf *cf, struct command *cmd, void *conf)
     return CONF_OK;
 }
 
-char *
-conf_add_server(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_add_server(struct conf *cf, const struct command *cmd, void *conf)
 {
     rstatus_t status;
     struct array *a;
@@ -1802,7 +1792,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     uint8_t *p, *q, *start;
     uint8_t *pname, *addr, *port, *weight, *name;
     uint32_t k, delimlen, pnamelen, addrlen, portlen, weightlen, namelen;
-    char delim[] = " ::";
+    const char *const delim = " ::";
 
     p = conf;
     a = (struct array *)(p + cmd->offset);
@@ -1932,12 +1922,12 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     return CONF_OK;
 }
 
-char *
-conf_set_num(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_set_num(struct conf *cf, const struct command *cmd, void *conf)
 {
     uint8_t *p;
     int num, *np;
-    struct string *value;
+    const struct string *value;
 
     p = conf;
     np = (int *)(p + cmd->offset);
@@ -1958,12 +1948,12 @@ conf_set_num(struct conf *cf, struct command *cmd, void *conf)
     return CONF_OK;
 }
 
-char *
-conf_set_bool(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_set_bool(struct conf *cf, const struct command *cmd, void *conf)
 {
     uint8_t *p;
     int *bp;
-    struct string *value, true_str, false_str;
+    const struct string *value;
 
     p = conf;
     bp = (int *)(p + cmd->offset);
@@ -1973,8 +1963,6 @@ conf_set_bool(struct conf *cf, struct command *cmd, void *conf)
     }
 
     value = array_top(&cf->arg);
-    string_set_text(&true_str, "true");
-    string_set_text(&false_str, "false");
 
     if (string_compare(value, &true_str) == 0) {
         *bp = 1;
@@ -1987,12 +1975,12 @@ conf_set_bool(struct conf *cf, struct command *cmd, void *conf)
     return CONF_OK;
 }
 
-char *
-conf_set_hash(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_set_hash(struct conf *cf, const struct command *cmd, void *conf)
 {
     uint8_t *p;
     hash_type_t *hp;
-    struct string *value, *hash;
+    const struct string *value, *hash;
 
     p = conf;
     hp = (hash_type_t *)(p + cmd->offset);
@@ -2016,12 +2004,12 @@ conf_set_hash(struct conf *cf, struct command *cmd, void *conf)
     return "is not a valid hash";
 }
 
-char *
-conf_set_distribution(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_set_distribution(struct conf *cf, const struct command *cmd, void *conf)
 {
     uint8_t *p;
     dist_type_t *dp;
-    struct string *value, *dist;
+    const struct string *value, *dist;
 
     p = conf;
     dp = (dist_type_t *)(p + cmd->offset);
@@ -2045,12 +2033,13 @@ conf_set_distribution(struct conf *cf, struct command *cmd, void *conf)
     return "is not a valid distribution";
 }
 
-char *
-conf_set_hashtag(struct conf *cf, struct command *cmd, void *conf)
+const char *
+conf_set_hashtag(struct conf *cf, const struct command *cmd, void *conf)
 {
     rstatus_t status;
     uint8_t *p;
-    struct string *field, *value;
+    struct string *field;
+    const struct string *value;
 
     p = conf;
     field = (struct string *)(p + cmd->offset);
