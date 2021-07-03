@@ -1349,7 +1349,7 @@ memcache_fragment_retrieval(struct msg *r, uint32_t nserver,
         return status;
     }
 
-    sub_msgs = nc_zalloc(nservers * sizeof(*sub_msgs));
+    sub_msgs = nc_zalloc(nserver * sizeof(*sub_msgs));
     if (sub_msgs == NULL) {
         return NC_ENOMEM;
     }

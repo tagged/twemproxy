@@ -448,7 +448,7 @@ conf_rewrite(struct context *ctx)
     struct conf *cf;
     struct conf_pool *cp;
     struct conf_server *cs;
-    struct string true_str, false_str, bool_str;
+    struct string bool_str;
     FILE *fh;
     char temp_conf_file[256];
 
@@ -470,9 +470,6 @@ conf_rewrite(struct context *ctx)
                   temp_conf_file, strerror(errno));
         return;
     }
-
-    string_set_text(&true_str, "true");
-    string_set_text(&false_str, "false");
 
     for (i = 0; i < npool; i++) {
         cp = array_get_known_type(&cf->pool, i, struct conf_pool);
@@ -1342,14 +1339,6 @@ conf_pre_validate(struct conf *cf)
     cf->sound = 1;
 
     return NC_OK;
-}
-
-static int
-conf_server_pname_cmp(const void *t1, const void *t2)
-{
-    const struct conf_server *s1 = t1, *s2 = t2;
-
-    return string_compare(&s1->pname, &s2->pname);
 }
 
 static int

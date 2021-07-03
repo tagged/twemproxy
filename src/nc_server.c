@@ -918,7 +918,7 @@ server_pool_server(struct server_pool *pool, const uint8_t *key, uint32_t keylen
  * Returns a connection or null to forward the given key to. This will recursively choose a failover pool.
  */
 static struct server *
-server_pool_conn_failover(struct server_pool *failover, uint8_t *key,
+server_pool_conn_failover(struct server_pool *failover, const uint8_t *key,
                           uint32_t keylen)
 {
     /* Fallback to the failover pool */
