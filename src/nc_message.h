@@ -252,8 +252,10 @@ struct keypos {
     uint8_t             *end;             /* key end pos */
 };
 
-// This represents a message with a list of mbufs, that can be a redis/memcache request/response/error response.
-// http://www.catb.org/esr/structure-packing/ may be of use
+/*
+ * This represents a message with a list of mbufs
+ * that can be a redis/memcache request/response/error response.
+ */
 struct msg {
     TAILQ_ENTRY(msg)     c_tqe;           /* link in client q */
     TAILQ_ENTRY(msg)     s_tqe;           /* link in server q */

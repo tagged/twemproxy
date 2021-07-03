@@ -2,16 +2,28 @@
 #include <nc_conf.h>
 #include <nc_util.h>
 #include <proto/nc_proto.h>
+#include <stdio.h>
 
 static int failures = 0;
 static int successes = 0;
 
-static void expect_same_uint32_t(uint32_t expected, uint32_t actual, const char* message) {
+static void expect_same_int(int expected, int actual, const char* message) {
     if (expected != actual) {
-        printf("FAIL Expected %u, got %u (%s)\n", (unsigned int) expected, (unsigned int) actual, message);
+        printf("FAIL Expected %d, got %d (%s)\n", expected, actual, message);
         failures++;
     } else {
-        // printf("PASS (%s)\n", message);
+        /* printf("PASS (%s)\n", message); */
+        successes++;
+    }
+}
+
+static void expect_same_uint32_t(uint32_t expected, uint32_t actual, const char* message) {
+    if (expected != actual) {
+        printf("FAIL Expected %u, got %u (%s)\n", (unsigned int) expected,
+                (unsigned int) actual, message);
+        failures++;
+    } else {
+        /* printf("PASS (%s)\n", message); */
         successes++;
     }
 }
@@ -21,13 +33,13 @@ static void expect_same_ptr(void *expected, void *actual, const char* message) {
         printf("FAIL Expected %p, got %p (%s)\n", expected, actual, message);
         failures++;
     } else {
-        // printf("PASS (%s)\n", message);
+        /* printf("PASS (%s)\n", message); */
         successes++;
     }
 }
 
 static void test_hash_algorithms(void) {
-    // refer to libmemcached tests/hash_results.h
+    /* refer to libmemcached tests/hash_results.h */
     expect_same_uint32_t(2297466611U, hash_one_at_a_time("apple", 5), "should have expected one_at_a_time hash for key \"apple\"");
     expect_same_uint32_t(3195025439U, hash_md5("apple", 5), "should have expected md5 hash for key \"apple\"");
     expect_same_uint32_t(3853726576U, ketama_hash("server1-8", strlen("server1-8"), 0), "should have expected ketama_hash for server1-8 index 0");
@@ -51,16 +63,16 @@ static void test_config_parsing(void) {
 static void test_redis_parse_req_success_case(char* data, int expected_type) {
     struct conn fake_client = {0};
     struct mbuf *m = mbuf_get();
-    const int SW_START = 0;  // Same as SW_START in redis_parse_req
+    const int SW_START = 0;  /* Same as SW_START in redis_parse_req */
 
     struct msg *req = msg_get(&fake_client, 1, 1);
     req->state = SW_START;
     req->token = NULL;
-    const size_t datalen = (int)strlen(data);
+    const size_t datalen = strlen(data);
 
-    // Copy data into the message
+    /* Copy data into the message */
     mbuf_copy(m, (uint8_t*)data, datalen);
-    // Insert a single buffer into the message mbuf header
+    /* Insert a single buffer into the message mbuf header */
     STAILQ_INIT(&req->mhdr);
     ASSERT(STAILQ_EMPTY(&req->mhdr));
     mbuf_insert(&req->mhdr, m);
@@ -68,26 +80,27 @@ static void test_redis_parse_req_success_case(char* data, int expected_type) {
 
     redis_parse_req(req);
     expect_same_ptr(m->last, req->pos, "redis_parse_req: expected req->pos to be m->last");
-    expect_same_uint32_t(SW_START, req->state, "redis_parse_req: expected full buffer to be parsed");
-    expect_same_uint32_t(expected_type, req->type, "redis_parse_req: expected request type to be parsed");
-    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
+    expect_same_int(SW_START, req->state, "redis_parse_req: expected full buffer to be parsed");
+    expect_same_int(expected_type, req->type, "redis_parse_req: expected request type to be parsed");
+    expect_same_int(0, fake_client.err, "redis_parse_req: expected no connection error");
 
     msg_put(req);
-    // mbuf_put(m);
+    /* mbuf_put(m); */
 }
 
-// Test support for https://redis.io/topics/protocol
+/* Test support for https://redis.io/topics/protocol */
 static void test_redis_parse_req_success(void) {
-    // Redis requests from clients are serialized as arrays before sending them (* is array length, $ is string length)
+    /* Redis requests from clients are serialized as arrays before sending them (* is array length, $ is string length) */
     test_redis_parse_req_success_case("*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n", MSG_REQ_REDIS_GET);
     test_redis_parse_req_success_case("*2\r\n$4\r\nMGET\r\n$1\r\nx\r\n", MSG_REQ_REDIS_MGET);
     test_redis_parse_req_success_case("*3\r\n$4\r\nMGET\r\n$1\r\nx\r\n$10\r\nabcdefghij\r\n", MSG_REQ_REDIS_MGET);
 
     test_redis_parse_req_success_case("*3\r\n$3\r\nSET\r\n$10\r\nkey4567890\r\n$5\r\nVALUE\r\n", MSG_REQ_REDIS_SET);
-    test_redis_parse_req_success_case("*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n", MSG_REQ_REDIS_LLEN);  // LLEN command
+
     test_redis_parse_req_success_case("*1\r\n$7\r\nCOMMAND\r\n", MSG_REQ_REDIS_COMMAND);
     test_redis_parse_req_success_case("*1\r\n$6\r\nLOLWUT\r\n", MSG_REQ_REDIS_LOLWUT);
     test_redis_parse_req_success_case("*2\r\n$6\r\nLOLWUT\r\n$2\r\n40\r\n", MSG_REQ_REDIS_LOLWUT);
+    test_redis_parse_req_success_case("*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n", MSG_REQ_REDIS_LLEN);  /* LLEN command */
     test_redis_parse_req_success_case("*1\r\n$4\r\nPING\r\n", MSG_REQ_REDIS_PING);
 }
 
@@ -95,16 +108,16 @@ static void test_redis_parse_rsp_success_case(char* data) {
     int original_failures = failures;
     struct conn fake_client = {0};
     struct mbuf *m = mbuf_get();
-    const int SW_START = 0;  // Same as SW_START in redis_parse_rsp
+    const int SW_START = 0;  /* Same as SW_START in redis_parse_rsp */
 
     struct msg *rsp = msg_get(&fake_client, 0, 1);
     rsp->state = SW_START;
     rsp->token = NULL;
-    const size_t datalen = (int)strlen(data);
+    const size_t datalen = strlen(data);
 
-    // Copy data into the message
+    /* Copy data into the message */
     mbuf_copy(m, (uint8_t*)data, datalen);
-    // Insert a single buffer into the message mbuf header
+    /* Insert a single buffer into the message mbuf header */
     STAILQ_INIT(&rsp->mhdr);
     ASSERT(STAILQ_EMPTY(&rsp->mhdr));
     mbuf_insert(&rsp->mhdr, m);
@@ -112,29 +125,33 @@ static void test_redis_parse_rsp_success_case(char* data) {
 
     redis_parse_rsp(rsp);
     expect_same_ptr(m->last, rsp->pos, "redis_parse_rsp: expected rsp->pos to be m->last");
-    expect_same_uint32_t(SW_START, rsp->state, "redis_parse_rsp: expected full buffer to be parsed");
+    expect_same_int(SW_START, rsp->state, "redis_parse_rsp: expected full buffer to be parsed");
     expect_same_uint32_t(1, rsp->rnarg ? rsp->rnarg : 1, "expected remaining args to be 0 or 1");
 
     msg_put(rsp);
-    // mbuf_put(m);
+    /* mbuf_put(m); */
     if (failures > original_failures) {
         fprintf(stderr, "test_redis_parse_rsp_success_case failed for %s", data);
     }
 }
 
-// Test support for https://redis.io/topics/protocol
+/* Test support for https://redis.io/topics/protocol */
 static void test_redis_parse_rsp_success(void) {
-    test_redis_parse_rsp_success_case("-CUSTOMERR\r\n");  // Error message without a space
-    test_redis_parse_rsp_success_case("-Error message\r\n");  // Error message
-    test_redis_parse_rsp_success_case("+OK\r\n");  // Error message without a space
+    test_redis_parse_rsp_success_case("-CUSTOMERR\r\n");  /* Error message without a space */
+    test_redis_parse_rsp_success_case("-Error message\r\n");  /* Error message */
+    test_redis_parse_rsp_success_case("+OK\r\n");  /* Error message without a space */
 
-    test_redis_parse_rsp_success_case("$6\r\nfoobar\r\n");  // bulk string
-    test_redis_parse_rsp_success_case("$0\r\n\r\n");  // empty bulk string
-    test_redis_parse_rsp_success_case("$-1\r\n");  // null value
-    test_redis_parse_rsp_success_case("*0\r\n");  // empty array
-    test_redis_parse_rsp_success_case("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n");  // array with 2 bulk strings
-    test_redis_parse_rsp_success_case("*3\r\n:1\r\n:2\r\n:3\r\n");  // array with 3 integers
-    test_redis_parse_rsp_success_case("*-1\r\n");  // null array for BLPOP
+    test_redis_parse_rsp_success_case("$6\r\nfoobar\r\n");  /* bulk string */
+    test_redis_parse_rsp_success_case("$0\r\n\r\n");  /* empty bulk string */
+    test_redis_parse_rsp_success_case("$-1\r\n");  /* null value */
+    test_redis_parse_rsp_success_case("*0\r\n");  /* empty array */
+    test_redis_parse_rsp_success_case("*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n");  /* array with 2 bulk strings */
+    test_redis_parse_rsp_success_case("*3\r\n:1\r\n:2\r\n:3\r\n");  /* array with 3 integers */
+    test_redis_parse_rsp_success_case("*-1\r\n");  /* null array for BLPOP */
+    /*
+     * Test support for parsing arrays of arrays.
+     * They can be returned by COMMAND, EVAL, etc.
+     */
     test_redis_parse_rsp_success_case("*2\r\n"
             "*3\r\n"
             ":1\r\n"
@@ -148,16 +165,16 @@ static void test_redis_parse_rsp_success(void) {
 static void test_memcache_parse_rsp_success_case(char* data, int expected) {
     struct conn fake_client = {0};
     struct mbuf *m = mbuf_get();
-    const int SW_START = 0;  // Same as SW_START in memcache_parse_rsp
+    const int SW_START = 0;  /* Same as SW_START in memcache_parse_rsp */
 
     struct msg *rsp = msg_get(&fake_client, 0, 0);
     rsp->state = SW_START;
     rsp->token = NULL;
-    const size_t datalen = (int)strlen(data);
+    const size_t datalen = strlen(data);
 
-    // Copy data into the message
+    /* Copy data into the message */
     mbuf_copy(m, (uint8_t*)data, datalen);
-    // Insert a single buffer into the message mbuf header
+    /* Insert a single buffer into the message mbuf header */
     STAILQ_INIT(&rsp->mhdr);
     ASSERT(STAILQ_EMPTY(&rsp->mhdr));
     mbuf_insert(&rsp->mhdr, m);
@@ -165,12 +182,12 @@ static void test_memcache_parse_rsp_success_case(char* data, int expected) {
 
     memcache_parse_rsp(rsp);
     expect_same_ptr(m->last, rsp->pos, "memcache_parse_rsp: expected rsp->pos to be m->last");
-    expect_same_uint32_t(SW_START, rsp->state, "memcache_parse_rsp: expected state to be SW_START after parsing full buffer");
-    expect_same_uint32_t(expected, rsp->type, "memcache_parse_rsp: expected response type to be parsed");
-    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
+    expect_same_int(SW_START, rsp->state, "memcache_parse_rsp: expected state to be SW_START after parsing full buffer");
+    expect_same_int(expected, rsp->type, "memcache_parse_rsp: expected response type to be parsed");
+    expect_same_int(0, fake_client.err, "redis_parse_req: expected no connection error");
 
     msg_put(rsp);
-    // mbuf_put(m);
+    /* mbuf_put(m); */
 }
 
 static void test_memcache_parse_rsp_success(void) {
@@ -188,16 +205,16 @@ static void test_memcache_parse_rsp_success(void) {
 static void test_memcache_parse_req_success_case(char* data, int expected) {
     struct conn fake_client = {0};
     struct mbuf *m = mbuf_get();
-    const int SW_START = 0;  // Same as SW_START in memcache_parse_req
+    const int SW_START = 0;  /* Same as SW_START in memcache_parse_req */
 
     struct msg *req = msg_get(&fake_client, 1, 0);
     req->state = SW_START;
     req->token = NULL;
-    const size_t datalen = (int)strlen(data);
+    const size_t datalen = strlen(data);
 
-    // Copy data into the message
+    /* Copy data into the message */
     mbuf_copy(m, (uint8_t*)data, datalen);
-    // Insert a single buffer into the message mbuf header
+    /* Insert a single buffer into the message mbuf header */
     STAILQ_INIT(&req->mhdr);
     ASSERT(STAILQ_EMPTY(&req->mhdr));
     mbuf_insert(&req->mhdr, m);
@@ -205,12 +222,12 @@ static void test_memcache_parse_req_success_case(char* data, int expected) {
 
     memcache_parse_req(req);
     expect_same_ptr(m->last, req->pos, "memcache_parse_req: expected req->pos to be m->last");
-    expect_same_uint32_t(SW_START, req->state, "memcache_parse_req: expected state to be SW_START after parsing full buffer");
-    expect_same_uint32_t(expected, req->type, "memcache_parse_req: expected response type to be parsed");
-    expect_same_uint32_t(0, fake_client.err, "redis_parse_req: expected no connection error");
+    expect_same_int(SW_START, req->state, "memcache_parse_req: expected state to be SW_START after parsing full buffer");
+    expect_same_int(expected, req->type, "memcache_parse_req: expected response type to be parsed");
+    expect_same_int(0, fake_client.err, "redis_parse_req: expected no connection error");
 
     msg_put(req);
-    // mbuf_put(m);
+    /* mbuf_put(m); */
 }
 
 static void test_memcache_parse_req_success(void) {

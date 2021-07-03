@@ -251,16 +251,17 @@ done:
     msg->frag_id = 0;
     msg->frag_seq = NULL;
 
-    // These are used for parsing redis requests and responses.
+    /* These are used for parsing redis requests and responses. */
     msg->narg_start = NULL;
     msg->narg_end = NULL;
     msg->narg = 0;
     msg->rnarg = 0;
     msg->rlen = 0;
-    msg->integer = 0;  // This is used for both parsing redis requests and as a counter for coalescing responses such as DEL
-
-    // It's not necessary to initialize msg->stack - it's always done in nc_redis.c. Save a few instructions.
-    // msg->nested_depth = 0;  // Currently only used to parse redis *responses*. This may later include redis requests.
+    /*
+     * This is used for both parsing redis responses
+     * and as a counter for coalescing responses such as DEL
+     */
+    msg->integer = 0;
 
     msg->err = 0;
     msg->raw_bitflags = 0;

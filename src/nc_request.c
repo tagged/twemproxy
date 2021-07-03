@@ -33,14 +33,14 @@ req_get(struct conn *conn)
 }
 
 static void
-req_log(struct msg *req)
+req_log(const struct msg *req)
 {
     struct msg *rsp;           /* peer message (response) */
     int64_t req_time;          /* time cost for this request */
-    char *peer_str;            /* peer client ip:port */
+    const char *peer_str;      /* peer client ip:port */
     uint32_t req_len, rsp_len; /* request and response length */
-    struct string *req_type;   /* request type string */
-    struct keypos *kpos;
+    const struct string *req_type; /* request type string */
+    const struct keypos *kpos;
 
     if (log_loggable(LOG_INFO) == 0) {
         return;
@@ -95,7 +95,8 @@ req_log(struct msg *req)
               " key0 '%.*s' peer '%s' done %d error %d",
               req->id, req->owner->sd, req_time / 1000, req_time % 1000,
               req_type->len, req_type->data, req->narg, req_len, rsp_len,
-              (int)(kpos->end ? kpos->end - kpos->start : 0), kpos->start, peer_str, req->done, req->error);
+              (int)(kpos->end ? kpos->end - kpos->start : 0), kpos->start,
+              peer_str, req->done, req->error);
 }
 
 void
@@ -130,7 +131,7 @@ req_put(struct msg *msg)
 bool
 req_done(struct conn *conn, struct msg *msg)
 {
-    struct msg *cmsg, *pmsg; /* current and previous message */
+    struct msg *cmsg;        /* current message */
     uint64_t id;             /* fragment id */
     uint32_t nfragment;      /* # fragment */
 
@@ -157,18 +158,18 @@ req_done(struct conn *conn, struct msg *msg)
 
     /* check all fragments of the given request vector are done */
 
-    for (pmsg = msg, cmsg = TAILQ_PREV(msg, msg_tqh, c_tqe);
+    for (cmsg = TAILQ_PREV(msg, msg_tqh, c_tqe);
          cmsg != NULL && cmsg->frag_id == id;
-         pmsg = cmsg, cmsg = TAILQ_PREV(cmsg, msg_tqh, c_tqe)) {
+         cmsg = TAILQ_PREV(cmsg, msg_tqh, c_tqe)) {
 
         if (!cmsg->done) {
             return false;
         }
     }
 
-    for (pmsg = msg, cmsg = TAILQ_NEXT(msg, c_tqe);
+    for (cmsg = TAILQ_NEXT(msg, c_tqe);
          cmsg != NULL && cmsg->frag_id == id;
-         pmsg = cmsg, cmsg = TAILQ_NEXT(cmsg, c_tqe)) {
+         cmsg = TAILQ_NEXT(cmsg, c_tqe)) {
 
         if (!cmsg->done) {
             return false;
@@ -186,16 +187,16 @@ req_done(struct conn *conn, struct msg *msg)
     msg->fdone = 1;
     nfragment = 0;
 
-    for (pmsg = msg, cmsg = TAILQ_PREV(msg, msg_tqh, c_tqe);
+    for (cmsg = TAILQ_PREV(msg, msg_tqh, c_tqe);
          cmsg != NULL && cmsg->frag_id == id;
-         pmsg = cmsg, cmsg = TAILQ_PREV(cmsg, msg_tqh, c_tqe)) {
+         cmsg = TAILQ_PREV(cmsg, msg_tqh, c_tqe)) {
         cmsg->fdone = 1;
         nfragment++;
     }
 
-    for (pmsg = msg, cmsg = TAILQ_NEXT(msg, c_tqe);
+    for (cmsg = TAILQ_NEXT(msg, c_tqe);
          cmsg != NULL && cmsg->frag_id == id;
-         pmsg = cmsg, cmsg = TAILQ_NEXT(cmsg, c_tqe)) {
+         cmsg = TAILQ_NEXT(cmsg, c_tqe)) {
         cmsg->fdone = 1;
         nfragment++;
     }
@@ -593,7 +594,6 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
     struct conn *s_conn;
-    struct server_pool *pool;
     uint8_t *key;
     uint32_t keylen;
     struct keypos *kpos;
@@ -605,8 +605,6 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
         c_conn->enqueue_outq(ctx, c_conn, msg);
     }
 
-    pool = c_conn->owner;
-
     ASSERT(array_n(msg->keys) > 0);
     kpos = array_get_known_type(msg->keys, 0, struct keypos);
     key = kpos->start;
@@ -614,9 +612,18 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 
     s_conn = server_pool_conn(ctx, c_conn->owner, key, keylen);
     if (s_conn == NULL) {
-        /* Handle a failure to establish a new connection to a server, e.g. due to dns resolution errors. */
-        /* If this is a fragmented request sent to multiple servers such as a memcache get(multiget) mark the fragment for this request to the server as done. */
-        /* Normally, this would be done when the request was forwarded to the server, but due to failing to connect to the server this check is repeated here */
+        /*
+         * Handle a failure to establish a new connection to a server,
+         * e.g. due to dns resolution errors.
+         *
+         * If this is a fragmented request sent to multiple servers such as
+         * a memcache get(multiget),
+         * mark the fragment for this request to the server as done.
+         *
+         * Normally, this would be done when the request was forwarded to the
+         * server, but due to failing to connect to the server this check is
+         * repeated here.
+         */
         if (msg->frag_owner != NULL) {
             msg->frag_owner->nfrag_done++;
         }
